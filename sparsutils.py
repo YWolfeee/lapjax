@@ -76,8 +76,25 @@ def _tile_map (a: LapTuple, reps: Union[int, Sequence[int]]) -> AX_MAP:
   return {w: i if reps_tup[i]==1 else None for 
             i, w in enumerate(A_shape) if w is not None}
 
+# _compute_newshape is aborted in jax==0.4.16
+# we have to define it by ourselves
+def _compute_newshape(a: LapTuple, newshape: SHAPE):
+  """Fixes a -1 value in newshape, if present."""
+  try: 
+    iter(newshape)
+  except: 
+    newshape = (newshape,)
+
+  assert len([w for w in newshape if w < 0]) <= 1, \
+    f"There could at most be one negative value in shape, got {newshape}."
+  newsize = 1
+  # we remove the Poly check in the original function
+  for sp in newshape:
+    newsize *= sp
+  
+  return tuple(d if d != -1 else a.size // -newsize for d in newshape)
+
 def _reshape_map(a: LapTuple, *args: Any, order: str = "C") -> AX_MAP:
-  from jax._src.numpy.lax_numpy import _compute_newshape
   assert order == "C", "When calling `reshape`, LapJAX only supports order 'C'."
   newshape = _compute_newshape(a, args[0] if len(args) == 1 else args)
   oldshape = a.shape
