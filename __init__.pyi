@@ -1,3 +1,5 @@
+from jax import *
+
 from lapjax.laptuple import (
   LapTuple as LapTuple, 
   TupType as TupType,
@@ -17,8 +19,3 @@ from lapjax.wrapper import custom_wrap as custom_wrap
 from lapjax import numpy as numpy
 from lapjax import nn as nn
 from lapjax import lax as lax 
-
-import sys, importlib
-from lapjax.wrapper import _wrap_module
-_wrap_module(importlib.import_module(__name__.replace('lapjax', 'jax')), 
-             sys.modules[__name__])

@@ -1,9 +1,12 @@
+import enum
 from functools import partial
 from copy import deepcopy
+from typing import Callable, TypeVar, Tuple
 
 import jax
 from jax import vmap
 from jax import numpy as jnp
+from jax import lax as jlax
 
 from lapjax.func_utils import lap_print, get_name, vgd_f
 from lapjax.axis_utils import get_op_axis
@@ -19,10 +22,22 @@ from lapjax.sparsutils import (
   concat_sparsity,
 )
 
+F = TypeVar("F", bound=Callable)
+
+class FType(enum.Enum):
+    EMPTY = 0
+    CONSTRUCTION = 1
+    LINEAR = 2
+    ELEMENT = 3
+    MERGING = 4
+    OVERLOAD = 5
+    CUSTOMIZED = 6
+
 class FBase(object):
   support_type = [type(jnp.sum), type(jnp.tanh)]
   funclist = []
   classname = "Base"
+  ftype = FType.EMPTY
 
   def __init__(self) -> None:
     for w in self.funclist:  # Can only add function type inside
@@ -30,8 +45,8 @@ class FBase(object):
       f"{w.__name__} has type {type(w)}, but only support {self.support_type}!"
     self.namelist = get_name(self.funclist)
 
-  def contain(self, name):
-    return name in self.namelist
+  def contain(self, f: F):
+    return f in self.funclist
 
   def __str__(self) -> str:
     return self.classname + ": " + str(self.namelist)
@@ -39,6 +54,7 @@ class FBase(object):
 
 class FLinear(FBase):
   classname = "Linear"
+  ftype = FType.LINEAR
   funclist = [
     jnp.reshape, jnp.transpose, jnp.swapaxes,
     jnp.split, jnp.array_split, jnp.concatenate,
@@ -121,12 +137,13 @@ class FLinear(FBase):
 
 class FConstruction(FBase):
   classname = "Construction"
+  ftype = FType.CONSTRUCTION
   funclist = [
     jnp.eye, jnp.array,
     jnp.ones, jnp.ones_like,
     jnp.zeros, jnp.zeros_like,
     jnp.asarray, jnp.sign,
-    jax.lax.stop_gradient,
+    jlax.stop_gradient,
   ]
 
   def __init__(self) -> None:
@@ -135,6 +152,7 @@ class FConstruction(FBase):
 
 class FElement(FBase):
   classname = "Element-wise"
+  ftype = FType.ELEMENT
   funclist = [
     jnp.sin, jnp.cos, jnp.tan,
     jnp.arcsin, jnp.arccos, jnp.arctan,
@@ -143,7 +161,13 @@ class FElement(FBase):
     jnp.exp, jnp.log,
     jnp.square, jnp.sqrt, jnp.power,
     jnp.abs, jnp.absolute,
-    jax.lax.rsqrt,
+    jlax.sin, jlax.cos, jlax.tan,
+    jlax.asin, jlax.acos, jlax.atan, jlax.atan2,
+    jlax.asinh, jlax.acosh, jlax.atanh, 
+    jlax.exp, jlax.log, 
+    jlax.square, jlax.sqrt, jlax.rsqrt, 
+    jlax.pow, jlax.integer_pow,
+    jlax.abs, 
   ]
 
   def __init__(self) -> None:
@@ -165,6 +189,7 @@ class FElement(FBase):
 
 class FOverload(FBase):
   classname = "Overload"
+  ftype = FType.OVERLOAD
   funclist = [
     jnp.add, jnp.subtract, jnp.multiply, jnp.divide, jnp.true_divide
   ]
@@ -185,6 +210,7 @@ class FOverload(FBase):
 
 class FMerging(FBase):
   classname = "Merging"
+  ftype = FType.MERGING
   funclist = [
     jnp.linalg.norm, jnp.prod,
   ]
@@ -245,6 +271,7 @@ class FMerging(FBase):
 
 class FCustomized(FBase):
   classname = "Customized"
+  ftype = FType.CUSTOMIZED
   funclist = [
     jnp.matmul, jnp.dot,
     jnp.max, jnp.min,
@@ -428,3 +455,4 @@ felement = FElement()
 foverload = FOverload()
 fmerging = FMerging()
 fcustomized = FCustomized()
+func_type: Tuple[FBase] = (fconstruction, flinear, felement, foverload, fmerging, fcustomized)

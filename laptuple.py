@@ -267,7 +267,7 @@ class LapTuple(object):
     return my_jnp.power(LapTuple(self.value, self.grad, self.lap, self.spars), p)
 
   def __str__(self) -> str:
-    return 'value: {} + grad: {} + lap: {}'.format(self.value, self.grad, self.lap)
+    return 'LapTuple(\n  Value: \n{}\n  Grad: \n{} \n  Laplacian: \n{}\n)'.format(self.value, self.grad, self.lap)
 
 
 def reciprocal_withL(input_x: LapTuple) -> LapTuple:

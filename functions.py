@@ -1,11 +1,11 @@
-import enum
-from typing import Any, Mapping, Sequence, Tuple, Union, Callable, TypeVar
+from functools import wraps
+from typing import Any, Mapping, Sequence, Tuple, Union
 
 import jax
 import jax.numpy as jnp
 
 from lapjax.laptuple import LapTuple, TupType
-from lapjax.func_utils import wraps, lap_print
+from lapjax.func_utils import lap_print
 from lapjax.laputils import (
   laptupler, lap_counter,
   iter_func, lap_checker, tupler, lap_setter,
@@ -14,15 +14,10 @@ from lapjax.laputils import (
 from lapjax.sparsutils import tuple2spars
 from lapjax.function_class import *
 
-F = TypeVar("F", bound=Callable)
-
-class FType(enum.Enum):
-    CONSTRUCTION = 0
-    LINEAR = 1
-    ELEMENT = 2
+def is_wrapped(wrapped_f: F):
+  return max([max([wrapped_f == u for u in w.funclist]) for w in func_type]) == 1
 
 def lap_dispatcher (wrapped_f: F,
-                    custom_type: FType,
                     i_args: Tuple[Any],
                     i_kwargs: Mapping) -> F:
     """When laptuple is encountered, the dispatcher will behave different based on the wrapper_f.
@@ -52,11 +47,11 @@ def lap_dispatcher (wrapped_f: F,
       """
       args, kwargs = laptupler(p_args, i_args), laptupler(p_kwargs, i_kwargs)
 
-      if fconstruction.contain(fname) or custom_type == FType.CONSTRUCTION:
+      if fconstruction.contain(wrapped_f):
         lap_print(f"==== Dispatch '{fname}' to construction function ====")
         return wrapped_f(*iter_func(args), **iter_func(kwargs))
 
-      elif felement.contain(fname) or custom_type == FType.ELEMENT:
+      elif felement.contain(wrapped_f):
         # Take the grad and lap functions, and directly apply.
         # laptuple should not appear in kwargs. In FElement, args are at most one-layer tuple.
         # Only the first element SHOULD BE the laptuple
@@ -66,7 +61,7 @@ def lap_dispatcher (wrapped_f: F,
         
         return felement._element(wrapped_f, *args, **kwargs)
       
-      elif flinear.contain(fname) or custom_type == FType.LINEAR:
+      elif flinear.contain(wrapped_f):
         # Same function applied seperately to VALUE, GRAD, LAP
         # For linear functions, keyword arguments should not be laptuple
         lap_print(f"==== Dispatch '{fname}' to linear function ====")
@@ -75,7 +70,7 @@ def lap_dispatcher (wrapped_f: F,
         
         return flinear._linear(wrapped_f, *args, **kwargs)
 
-      elif foverload.contain(fname):
+      elif foverload.contain(wrapped_f):
         # There wouldn't be kwrags, and len(args)==2.
         lap_print(f"==== Dispatch '{fname}' to overload function ====")
         assert len(args) == 2 and len(kwargs) == 0, \
@@ -83,32 +78,34 @@ def lap_dispatcher (wrapped_f: F,
 
         return foverload._overload_f(fname, args[0], args[1])
 
-      elif fcustomized.contain(fname):
-        lap_print(f"==== Dispatch '{fname}' to customized function ====")
-        return fcustomized._customized(wrapped_f, *args, **kwargs)
-      
-      elif fmerging.contain(fname):
+      elif fmerging.contain(wrapped_f):
         lap_print(f"==== Dispatch '{fname}' to merging function ====")
         check_single_args(fname, args)
         check_pure_kwargs(fname, kwargs)
 
         return fmerging._merging(wrapped_f, *args, **kwargs)
 
+      elif fcustomized.contain(wrapped_f):
+        lap_print(f"==== Dispatch '{fname}' to customized function ====")
+        return fcustomized._customized(wrapped_f, *args, **kwargs)
+
       raise NotImplementedError(f"Encounter an unexpected function '{fname}'.")
 
     return _wrapped_f
 
 def vmap(fun: F,
-         in_axes: Union[int, Sequence[Any]] = 0,
-         out_axes: Any = 0,
-         ) -> F:
+        in_axes: Union[int, Sequence[Any]] = 0,
+        out_axes: Any = 0,
+        ) -> F:
+  """
+    lapjax wrapped 'vmap' function.
+    The expanded vmap supports efficient vectorizing with LapTuple input.
+    For original function document, please refer to 'jax.vmap'.    
+  """
+
   from jax.tree_util import tree_flatten, tree_unflatten
   from jax.interpreters import batching
   from jax._src.api_util import flatten_axes
-  docstr = ("Laptuple vmap function of {fun}."
-            "The difference is that it expands the axes of laptuple when calling.")
-  if fun.__doc__:
-    docstr += "\n\nOriginal documentation:\n\n" + fun.__doc__
 
   def _converter (ist, axis):
     """Convert ist to tupler with correct index.
@@ -119,7 +116,7 @@ def vmap(fun: F,
       return ist
     return ist[0], jnp.swapaxes(ist[1], axis, axis+1), ist[2]
 
-  @wraps(fun, docstr=docstr)
+  @wraps(fun)
   def _vmap(*args, **kwargs):  # true call from users.
     if lap_counter((args, kwargs)) == 0:
       return jax.vmap(fun, in_axes, out_axes)(*args, **kwargs)
