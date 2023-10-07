@@ -139,6 +139,7 @@ class FConstruction(FBase):
   classname = "Construction"
   ftype = FType.CONSTRUCTION
   funclist = [
+    jnp.shape, jnp.size,
     jnp.eye, jnp.array,
     jnp.ones, jnp.ones_like,
     jnp.zeros, jnp.zeros_like,

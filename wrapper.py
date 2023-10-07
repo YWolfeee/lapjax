@@ -21,8 +21,8 @@ def _lapwrapper (wrapped_f: F) -> F:
 
     if not is_wrapped(wrapped_f):
       raise NotImplementedError(
-        f"Lapjax encounters unwrapped function '{wrapped_f.__name__}'." + \
-         "Please consider using other functions or wrap it yourself." + \
+        f"Lapjax encounters unwrapped function '{wrapped_f.__name__}'.\n" + \
+         "Please consider using other functions or wrap it yourself.\n" + \
          "You can refer to README for more information about customized wrap."
         )
 
