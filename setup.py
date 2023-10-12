@@ -94,7 +94,8 @@ def pre_setup():
     Change the `_src` directory to `lapjax` that can be used for setup.
     Includes the `jax` package structure.
     """
-    
+    assert os.path.exists('_src'), \
+        "Please run setup.py in the root directory of lapjax."
     shutil.rmtree('build', ignore_errors=True) 
     shutil.rmtree('lapjax.egg-info', ignore_errors=True) 
     # Remove the old `lapjax` directory.

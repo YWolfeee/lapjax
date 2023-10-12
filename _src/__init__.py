@@ -6,12 +6,12 @@ from lapjax.lapconfig import lapconfig as lapconfig
 from lapjax.functions import (
   vmap as vmap,
   FType as FType,
+  custom_wrap as custom_wrap
 )
 from lapjax.sparsinfo import (
   InputInfo as InputInfo,
   SparsInfo as SparsInfo,
 )
-from lapjax.wrapper import custom_wrap as custom_wrap
 
 ### Over-write module entrance to lapjax ###
 # from lapjax import numpy as numpy

@@ -13,7 +13,7 @@ from lapjax.axis_utils import get_op_axis
 from lapjax.laptuple import LapTuple, TupType
 from lapjax.laputils import (
   iter_func, lap_setter, 
-  check_single_args, check_pure_kwargs,
+  check_single_args, check_pure_kwargs, check_lapcount_args,
 )
 from lapjax.sparsutils import (
   get_axis_map, 
@@ -47,6 +47,14 @@ class FBase(object):
 
   def contain(self, f: F):
     return f in self.funclist
+  
+  def examine(self, f: F, *args, **kwargs):
+    """Test whether the function satisfies corresponding properties."""
+    pass
+
+  def execute(self, f: F, *args, **kwargs):
+    """Execute the function with LapTuple input."""
+    pass
 
   def __str__(self) -> str:
     return self.classname + ": " + str(self.namelist)
@@ -67,7 +75,14 @@ class FLinear(FBase):
   def __init__(self) -> None:
     super(FLinear, self).__init__()
 
-  def _linear(self, f, *args, **kwargs):
+  def examine(self, f: F, *args, **kwargs):
+    # Same function applied seperately to VALUE, GRAD, LAP
+    # For linear functions, keyword arguments should not be laptuple
+    # Can have multiple LapTuple, e.g. jnp.concatenate
+    fname = f.__name__
+    check_pure_kwargs(fname, kwargs)
+
+  def execute(self, f, *args, **kwargs):
     fname = f.__name__
     pf = partial(f, **kwargs)
 
@@ -150,6 +165,9 @@ class FConstruction(FBase):
   def __init__(self) -> None:
     super(FConstruction,self).__init__()
 
+  def execute(self, f: F, *args, **kwargs):
+    return f(*iter_func(args), **iter_func(kwargs))
+
 
 class FElement(FBase):
   classname = "Element-wise"
@@ -174,7 +192,14 @@ class FElement(FBase):
   def __init__(self) -> None:
     super(FElement,self).__init__()
 
-  def _element(self, _f, *args, **kwargs):
+  def examine(self, f: F, *args, **kwargs):
+    # laptuple should not appear in kwargs. In FElement, args are at most one-layer tuple.
+    # Only the first element SHOULD BE the laptuple
+    fname = f.__name__
+    check_pure_kwargs(fname, kwargs)
+    check_lapcount_args(fname, args)
+
+  def execute(self, _f, *args, **kwargs):
     def p_f (x):
       cargs = (x,)+args[1:]
       return _f(*cargs, **kwargs)
@@ -198,7 +223,15 @@ class FOverload(FBase):
   def __init__(self) -> None:
     super(FOverload, self).__init__()
 
-  def _overload_f (self, fname, x1, x2):
+  def examine(self, f: F, *args, **kwargs):
+    # There wouldn't be kwrags, and len(args)==2.
+    fname = f.__name__
+    assert len(args) == 2 and len(kwargs) == 0, \
+      f"Arguments mismatch. Require binary arguments, but len(args) = {len(args)} and len(kwargs) = {len(kwargs)}."
+
+  def execute (self, fname, *args, **kwargs):
+    del kwargs
+    x1, x2 = args
     if fname == "add":
       return x1 + x2
     elif fname == "subtract":
@@ -219,7 +252,12 @@ class FMerging(FBase):
   def __init__(self) -> None:
     super(FMerging, self).__init__()
 
-  def _merging (self, f, *args, **kwargs):
+  def examine(self, f: F, *args, **kwargs):
+    fname = f.__name__
+    check_single_args(fname, args)
+    check_pure_kwargs(fname, kwargs)
+
+  def execute (self, f, *args, **kwargs):
     fname = f.__name__
     """
     These functions always operate along some axes.
@@ -285,7 +323,7 @@ class FCustomized(FBase):
   def __init__(self) -> None:
     super(FCustomized, self).__init__()
 
-  def _customized(self, f, *args, **kwargs):
+  def execute(self, f, *args, **kwargs):
     fname = f.__name__
     if fname in get_name([jnp.max, jnp.min, jnp.amax, jnp.amin,]):
       # Consider shortcut first:

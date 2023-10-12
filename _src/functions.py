@@ -15,7 +15,41 @@ from lapjax.sparsutils import tuple2spars
 from lapjax.function_class import *
 
 def is_wrapped(wrapped_f: F):
-  return max([max([wrapped_f == u for u in w.funclist]) for w in func_type]) == 1
+  return max([wrapped_f in w.funclist for w in func_type]) == 1
+
+def get_wrap_class(wrapped_f: F) -> FBase:
+  for wrap_class in func_type:
+    if wrapped_f in wrap_class.funclist:
+      return wrap_class
+  raise ValueError(f"Function '{wrapped_f.__name__}' is not wrapped.")
+
+def get_wrap_by_type(wrap_type: FType) -> FBase:
+  return [w for w in func_type if w.ftype == wrap_type][0]
+
+def custom_wrap(f: F, custom_type: FType, cst_f: F = None):
+  """Bind a self-defined function `f` to a funtion type, or to the `cst_f`.
+  When `cst_f` is None, custom_type 
+  This will allow the dispatch to treat the return function as this type.
+
+  Args:
+      f (F): the function you want to bind to a predefined type.
+      custom_type (FType): the function type you want to bind to.
+
+  Returns:
+      lapjax wrapped f.
+  """
+  assert custom_type in FType, "Custom type should be one of the predefined FTypes."
+  if custom_type == FType.CUSTOMIZED:
+    assert cst_f is not None and callable(cst_f), \
+      "When custom_type is CUSTOMIZED, cst_f should be a callable function."
+  assert custom_type != FTpye.OVERLOAD, \
+    "Overload type is not supported for custom wrap."
+  wrap_class = get_wrap_by_type(custom_type)
+    
+
+  raise NotImplementedError
+  print(f"Customing function '{f.__name__}' as {custom_type}.")
+  return _lapwrapper(f, custom_type)
 
 def lap_dispatcher (wrapped_f: F,
                     i_args: Tuple[Any],
@@ -24,6 +58,7 @@ def lap_dispatcher (wrapped_f: F,
     When it is a construction function, return operation on VALUE without creating tuples.
     When it is a linear function without changing GRAD range, apply to each LapType directly.
     When it is a linear function with (possibly) merging, check dynamic GRAD sparsity expansion.
+    When it is a LapTuple operator, check there are only two inputs (jnp.ndarray or LapTuple).
     When it is a element-wise function, vmap to calculate each LapType, and reshape.
     When it is a customized function, call the custimized function directly.
     Otherwise, raise.
@@ -47,49 +82,10 @@ def lap_dispatcher (wrapped_f: F,
       """
       args, kwargs = laptupler(p_args, i_args), laptupler(p_kwargs, i_kwargs)
 
-      if fconstruction.contain(wrapped_f):
-        lap_print(f"==== Dispatch '{fname}' to construction function ====")
-        return wrapped_f(*iter_func(args), **iter_func(kwargs))
-
-      elif felement.contain(wrapped_f):
-        # Take the grad and lap functions, and directly apply.
-        # laptuple should not appear in kwargs. In FElement, args are at most one-layer tuple.
-        # Only the first element SHOULD BE the laptuple
-        lap_print(f"==== Dispatch '{fname}' to element function ====")
-        check_pure_kwargs(fname, kwargs)
-        check_lapcount_args(fname, args)
-        
-        return felement._element(wrapped_f, *args, **kwargs)
-      
-      elif flinear.contain(wrapped_f):
-        # Same function applied seperately to VALUE, GRAD, LAP
-        # For linear functions, keyword arguments should not be laptuple
-        lap_print(f"==== Dispatch '{fname}' to linear function ====")
-        check_pure_kwargs(fname, kwargs)
-        # Can have multiple LapTuple, e.g. jnp.concatenate
-        
-        return flinear._linear(wrapped_f, *args, **kwargs)
-
-      elif foverload.contain(wrapped_f):
-        # There wouldn't be kwrags, and len(args)==2.
-        lap_print(f"==== Dispatch '{fname}' to overload function ====")
-        assert len(args) == 2 and len(kwargs) == 0, \
-          f"Arguments mismatch. Require binary arguments, but len(args) = {len(args)} and len(kwargs) = {len(kwargs)}."
-
-        return foverload._overload_f(fname, args[0], args[1])
-
-      elif fmerging.contain(wrapped_f):
-        lap_print(f"==== Dispatch '{fname}' to merging function ====")
-        check_single_args(fname, args)
-        check_pure_kwargs(fname, kwargs)
-
-        return fmerging._merging(wrapped_f, *args, **kwargs)
-
-      elif fcustomized.contain(wrapped_f):
-        lap_print(f"==== Dispatch '{fname}' to customized function ====")
-        return fcustomized._customized(wrapped_f, *args, **kwargs)
-
-      raise NotImplementedError(f"Encounter an unexpected function '{fname}'.")
+      wrap_class = get_wrap_class(wrapped_f)
+      lap_print(f"==== Dispatch '{fname}' to {wrap_class.classname} class ====")
+      wrap_class.examine(wrapped_f, *args, **kwargs)
+      return wrap_class.execute(wrapped_f, *args, **kwargs)
 
     return _wrapped_f
 

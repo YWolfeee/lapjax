@@ -50,19 +50,3 @@ def _wrap_module (module, new_module):
         continue
       setattr(new_module, name, val)
   # print(f"Initialize: wrapped '{module.__name__}' to '{new_module.__name__}'.")
-
-def custom_wrap(f: F, custom_type: FType, cst_f: F = None):
-  """Bind a self-defined function `f` to a funtion type, or to the `cst_f`.
-  When `cst_f` is None, custom_type 
-  This will allow the dispatch to treat the return function as this type.
-
-  Args:
-      f (F): the function you want to bind to a predefined type.
-      custom_type (FType): the function type you want to bind to.
-
-  Returns:
-      lapjax wrapped f.
-  """
-  raise NotImplementedError
-  print(f"Customing function '{f.__name__}' as {custom_type}.")
-  return _lapwrapper(f, custom_type)
