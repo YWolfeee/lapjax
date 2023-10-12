@@ -15,9 +15,54 @@ class TupType(enum.Enum):
   LAP = 2
 
 class LapTuple(object):
-  """Forward Laplacian wrapped ndarray, with its nabla and laplacian w.r.t input.
-  We support normal operations on jax.numpy.ndarray for LapTuple, where value
+  """
+  Forward Laplacian wrapped ndarray, with its nabla and laplacian w.r.t input.
+  We support various common operations on jax for LapTuple, where value
   is processed indentically, and grad and laplacian is calculated accordingly.
+  Specifically, we have:
+  ```
+    val.shape == grad.shape[1:] == lap.shape
+  ```
+  Here, grad.shape[0] is the gradient dimension, which is determined by the sparsity.
+  
+  For example, for LapTuple x and y, we have:
+  ```
+  x + y = LapTuple(x.value + y.value, 
+                   x.grad + y.grad, 
+                   x.lap + y.lap)
+
+  x * y = LapTuple(x.value * y.value, 
+                   x.grad * y.value[None] + y.grad * x.value[None],
+                   2 * jnp.sum(x.grad * y.grad, axis=0) + x.lap * y.value + y.lap * x.value)
+  ``` 
+
+  To construct a LapTuple for the input x, simply use 
+  ```
+  from lapjax import LapTuple, numpy
+  x = numpy.eye(3)
+  LapTuple(x, is_input=True)
+  x.shape # (3, 3)
+  ```
+  To construct a LapTuple w.r.t input x with grad zero, use
+  ```
+  from lapjax import LapTuple, SparsInfo, numpy
+  x = LapTuple(numpy.eye(3), is_input=True)
+  y = LapTuple(numpy.eye(4), spars=SparsInfo(a.spars.input))
+  b.grad.shape  # (9, 4, 4)
+  ```
+  To construct a LapTuple w.r.t input x manually, use
+  ```
+  from lapjax import LapTuple, SparsInfo
+  y = LapTuple(value, grad, lap, spars=SparsInfo(x.spars.input)
+  ```
+  Notice that the last two methods break the sparsity of the input, 
+  and will harm the efficiency of the computation. When possible,
+  only specify the input and let LapTuple handle the sparsity.
+
+  To obtain the value, gradient, and laplacian, use `.get(TupType)` method, or
+  simply use `LapTuple.value, LapTuple.grad, LapTuple.lap`.
+
+
   
   """
   def __init__(self, value:jnp.ndarray,
@@ -90,7 +135,8 @@ class LapTuple(object):
       self.spars = spars
     else:
       assert grad is None and lap is None and spars is not None, \
-        ("When constructing non-input LapTuple with None `grad`,"
+        ("To construct LapTuple from input, set `is_input` to `True`.\n"
+          "To construct non-input LapTuple with zero `grad`,"
         " `lap` should be None and `spars` should be passed.")
       self.grad = jnp.zeros((spars.get_gdim(), ) + value.shape, 
                             dtype=value.dtype)

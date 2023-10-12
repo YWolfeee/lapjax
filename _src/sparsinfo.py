@@ -209,7 +209,7 @@ class SparsInfo (object):
     """
     grads = self.get_grad_split(grad)
     grads = [w.discard(op_axis, g) for w,g in zip(self.tups, grads)]
-    # TODO: consider merging tuples.
+    # TODO: consider merging tuples for further acceleration.
     self.set_grange(grads)
 
     return jnp.concatenate(grads, axis = 0)

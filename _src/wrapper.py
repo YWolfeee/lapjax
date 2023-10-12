@@ -49,7 +49,7 @@ def _wrap_module (module, new_module):
         # This has been over-write by lapjax already.
         continue
       setattr(new_module, name, val)
-  print(f"Initialize: wrapped '{module.__name__}' to '{new_module.__name__}'.")
+  # print(f"Initialize: wrapped '{module.__name__}' to '{new_module.__name__}'.")
 
 def custom_wrap(f: F, custom_type: FType, cst_f: F = None):
   """Bind a self-defined function `f` to a funtion type, or to the `cst_f`.
