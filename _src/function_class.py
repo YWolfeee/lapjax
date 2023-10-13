@@ -36,6 +36,7 @@ class FType(enum.Enum):
 class FBase(object):
   support_type = [type(jnp.sum), type(jnp.tanh)]
   funclist = []
+  hashlist = []
   classname = "Base"
   ftype = FType.EMPTY
 
@@ -43,7 +44,11 @@ class FBase(object):
     for w in self.funclist:  # Can only add function type inside
       assert type(w) in self.support_type, \
       f"{w.__name__} has type {type(w)}, but only support {self.support_type}!"
+    self.updated()
+
+  def updated(self) -> None:
     self.namelist = get_name(self.funclist)
+    self.hashlist = [w.__hash__() for w in self.funclist]
 
   def contain(self, f: F):
     return f in self.funclist
@@ -58,7 +63,7 @@ class FBase(object):
 
   def add_wrap(self, f: F, cst_f: F = None):
     self.funclist.append(f)
-    self.namelist = get_name(self.funclist)
+    self.updated()
 
   def __str__(self) -> str:
     return self.classname + ": " + str(self.namelist)
@@ -323,6 +328,8 @@ class FCustomized(FBase):
     jax.nn.logsumexp,
     jax.nn.softmax
   ]
+
+  custom_dict = {}  # user defined function
 
   def __init__(self) -> None:
     super(FCustomized, self).__init__()

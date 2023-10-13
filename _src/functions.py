@@ -13,17 +13,13 @@ from lapjax.laputils import (
 from lapjax.sparsutils import tuple2spars
 from lapjax.function_class import *
 
-def is_wrapped(wrapped_f: F, original: bool = False) -> bool:
-  if not original:
-    return max([wrapped_f.__name__ in w.namelist for w in func_type]) == 1
-  else:
-    return max([wrapped_f in w.funclist for w in func_type]) == 1
+def is_wrapped(wrapped_f: F) -> bool:
+    return max([wrapped_f.__hash__() in w.hashlist for w in func_type]) == 1
 
-def get_wrap_by_f(wrapped_f: F, original: bool = False) -> FBase:
+def get_wrap_by_f(wrapped_f: F) -> FBase:
   for wrap_class in func_type:
-    if (not original and wrapped_f.__name__ in wrap_class.namelist) or (
-      original and wrapped_f in wrap_class.funclist):
-        return wrap_class
+    if wrapped_f.__hash__() in wrap_class.hashlist:
+      return wrap_class
   raise ValueError(f"Function '{wrapped_f.__name__}' is not wrapped.")
 
 def get_wrap_by_type(wrap_type: FType) -> FBase:
@@ -47,15 +43,17 @@ def custom_wrap(f: F, custom_type: FType, cst_f: F = None) -> FBase:
   wrap_class = get_wrap_by_type(custom_type)
   if custom_type != FType.CUSTOMIZED:
     wrap_class.add_wrap(f)
-    print(f"Successfully bind function '{f.__name__}' to {custom_type}."+\
+    print(f"Successfully bind function '{f.__name__}' to {custom_type}.\n"+\
           "Notice that if custom_type is `FLinear`, " + \
-          "you might loss the sparsity. " + \
+          "you might loss the sparsity.\n" + \
           "Please consider customize the function and bind to `CUSTOMIZED`."
           )
-    pass
+
   else:
     assert cst_f is not None and callable(cst_f), \
       "When custom_type is CUSTOMIZED, cst_f should be a callable function."
+
+    
     raise NotImplementedError("Customized wrap is not supported yet.")
 
   return wrap_class

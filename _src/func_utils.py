@@ -87,6 +87,15 @@ def get_name(funcs: Union[Callable, Sequence]) -> Union[str, Sequence[str]]:
     return [w.__name__ for w in funcs]
   return funcs.__name__
 
+def get_hash(funcs: Union[Callable, Sequence]) -> Union[int, Sequence[int]]:
+  """Return the hash (or hashlist) of function 'funcs' (or function list 'funcs').
+  
+  Args:
+      funcs (Union[Callable, list]): Either a callable, or a list of callable.
+  """
+  if type(funcs) == list:
+    return [w.__hash__() for w in funcs]
+  return funcs.__hash__()
 
 def vgd_f (f):
   def _vgd(v, g, l) -> Tuple[jnp.ndarray]:

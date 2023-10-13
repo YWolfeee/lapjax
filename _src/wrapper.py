@@ -35,6 +35,7 @@ def _lapwrapper (wrapped_f: F) -> F:
     return tuplized_f(*iter_func(args, tupler), 
                       **iter_func(kwargs, tupler))
   
+  entrance.__hash__ = wrapped_f.__hash__  # used as main key in wrap classes
   return entrance
 
 def _wrap_module (module, new_module):
