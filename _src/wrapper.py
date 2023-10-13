@@ -15,7 +15,6 @@ def _lapwrapper (wrapped_f: F) -> F:
   @wraps(wrapped_f)
   def entrance (*args, **kwargs):
     lap_num = lap_counter(args) + lap_counter(kwargs)
-    # print(f"---- Entering wrappers, calling {wrapped_f.__name__}. #Lap = {lap_num} ----")
     if lap_num == 0: # No laptuple iterupts. Directly return.
       return wrapped_f(*args, **kwargs)
 
@@ -46,8 +45,6 @@ def _wrap_module (module, new_module):
       setattr(new_module, name, _lapwrapper(val))
     else:
       if ismodule(val) and hasattr(new_module, name): 
-        # print(f"Successfully wrapped '{name}' in '{new_module.__name__}'.")
         # This has been over-write by lapjax already.
         continue
       setattr(new_module, name, val)
-  # print(f"Initialize: wrapped '{module.__name__}' to '{new_module.__name__}'.")

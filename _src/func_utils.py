@@ -3,12 +3,13 @@ Tools here should not depend on the class in
   `laptuple.py` and `sparsinfo.py`.
 """
 from functools import partial
-from typing import Sequence, Union, Callable, Tuple
+from typing import Sequence, Union, Callable, Tuple, Callable, TypeVar
 
 import jax
 import jax.numpy as jnp
 from lapjax.lapconfig import lapconfig
 
+F = TypeVar("F", bound=Callable)
 
 def lap_print(*args, **kwargs):
   if lapconfig.debug_print:
