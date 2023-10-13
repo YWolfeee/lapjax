@@ -56,6 +56,10 @@ class FBase(object):
     """Execute the function with LapTuple input."""
     pass
 
+  def add_wrap(self, f: F, cst_f: F = None):
+    self.funclist.append(f)
+    self.namelist = get_name(self.funclist)
+
   def __str__(self) -> str:
     return self.classname + ": " + str(self.namelist)
 
@@ -115,8 +119,8 @@ class FLinear(FBase):
         # grads are properly discarded upon return.
         arrays, spars = concat_sparsity(args[0], op_axis)
         l_args = (arrays, )
-
       lap_print(f"    Discard sparsity to {spars.tups}.")
+
     else: 
       array: LapTuple = args[0]
       ax_map = get_axis_map(fname, *args, **kwargs)

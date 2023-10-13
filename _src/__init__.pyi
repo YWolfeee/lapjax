@@ -8,14 +8,11 @@ from lapjax.lapconfig import lapconfig as lapconfig
 from lapjax.functions import (
   vmap as vmap,
   FType as FType,
+  custom_wrap as custom_wrap,
+  is_wrapped as is_wrapped,
+  get_wrap_by_f as get_wrap_by_f,
 )
 from lapjax.sparsinfo import (
   InputInfo as InputInfo,
   SparsInfo as SparsInfo,
 )
-from lapjax.wrapper import custom_wrap as custom_wrap
-
-### Over-write module entrance to lapjax ###
-from lapjax import numpy as numpy
-from lapjax import nn as nn
-from lapjax import lax as lax 

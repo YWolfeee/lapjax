@@ -157,6 +157,7 @@ def get_axis_map (fname, *args, **kwargs) -> AX_MAP:
   ```
 
   """
+  from lapjax.function_class import flinear
   if fname in get_name([
     # Linear functions
     jnp.sum, jnp.mean,  
@@ -211,6 +212,12 @@ def get_axis_map (fname, *args, **kwargs) -> AX_MAP:
   elif fname in get_name([jnp.split, jnp.array_split]):
     ax_map = _split_map(*args, **kwargs)
   
+  elif fname in flinear.namelist:
+    ax_map = {}
+
+  else:
+    raise NotImplementedError(f"Function {fname} is not supported by Lapjax.")
+
   lap_print(f"  axes map: {ax_map}")
   return ax_map
 

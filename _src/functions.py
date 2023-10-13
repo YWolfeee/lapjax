@@ -9,24 +9,27 @@ from lapjax.func_utils import lap_print
 from lapjax.laputils import (
   laptupler, lap_counter,
   iter_func, lap_checker, tupler, lap_setter,
-  check_single_args, check_pure_kwargs, check_lapcount_args
 )
 from lapjax.sparsutils import tuple2spars
 from lapjax.function_class import *
 
-def is_wrapped(wrapped_f: F):
-  return max([wrapped_f in w.funclist for w in func_type]) == 1
+def is_wrapped(wrapped_f: F, original: bool = False) -> bool:
+  if not original:
+    return max([wrapped_f.__name__ in w.namelist for w in func_type]) == 1
+  else:
+    return max([wrapped_f in w.funclist for w in func_type]) == 1
 
-def get_wrap_class(wrapped_f: F) -> FBase:
+def get_wrap_by_f(wrapped_f: F, original: bool = False) -> FBase:
   for wrap_class in func_type:
-    if wrapped_f in wrap_class.funclist:
-      return wrap_class
+    if (not original and wrapped_f.__name__ in wrap_class.namelist) or (
+      original and wrapped_f in wrap_class.funclist):
+        return wrap_class
   raise ValueError(f"Function '{wrapped_f.__name__}' is not wrapped.")
 
 def get_wrap_by_type(wrap_type: FType) -> FBase:
   return [w for w in func_type if w.ftype == wrap_type][0]
 
-def custom_wrap(f: F, custom_type: FType, cst_f: F = None):
+def custom_wrap(f: F, custom_type: FType, cst_f: F = None) -> FBase:
   """Bind a self-defined function `f` to a funtion type, or to the `cst_f`.
   When `cst_f` is None, custom_type 
   This will allow the dispatch to treat the return function as this type.
@@ -39,17 +42,23 @@ def custom_wrap(f: F, custom_type: FType, cst_f: F = None):
       lapjax wrapped f.
   """
   assert custom_type in FType, "Custom type should be one of the predefined FTypes."
-  if custom_type == FType.CUSTOMIZED:
+  if custom_type == FType.OVERLOAD:
+    raise ValueError("Overload type is not allowed for custom wrap.")
+  wrap_class = get_wrap_by_type(custom_type)
+  if custom_type != FType.CUSTOMIZED:
+    wrap_class.add_wrap(f)
+    print(f"Successfully bind function '{f.__name__}' to {custom_type}."+\
+          "Notice that if custom_type is `FLinear`, " + \
+          "you might loss the sparsity. " + \
+          "Please consider customize the function and bind to `CUSTOMIZED`."
+          )
+    pass
+  else:
     assert cst_f is not None and callable(cst_f), \
       "When custom_type is CUSTOMIZED, cst_f should be a callable function."
-  assert custom_type != FTpye.OVERLOAD, \
-    "Overload type is not supported for custom wrap."
-  wrap_class = get_wrap_by_type(custom_type)
-    
+    raise NotImplementedError("Customized wrap is not supported yet.")
 
-  raise NotImplementedError
-  print(f"Customing function '{f.__name__}' as {custom_type}.")
-  return _lapwrapper(f, custom_type)
+  return wrap_class
 
 def lap_dispatcher (wrapped_f: F,
                     i_args: Tuple[Any],
@@ -82,7 +91,7 @@ def lap_dispatcher (wrapped_f: F,
       """
       args, kwargs = laptupler(p_args, i_args), laptupler(p_kwargs, i_kwargs)
 
-      wrap_class = get_wrap_class(wrapped_f)
+      wrap_class = get_wrap_by_f(wrapped_f)
       lap_print(f"==== Dispatch '{fname}' to {wrap_class.classname} class ====")
       wrap_class.examine(wrapped_f, *args, **kwargs)
       return wrap_class.execute(wrapped_f, *args, **kwargs)

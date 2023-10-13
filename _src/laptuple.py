@@ -172,7 +172,11 @@ class LapTuple(object):
     If not None, we map the original index to the new one;
     If None, this axis should be discarded.
 
+    If ax_map is {}, we discard all axis, lossing sparsity.
+
     """
+    if ax_map == {}:
+      return self.set_dense(force=True)
     if 0 not in ax_map.keys():  # keys are tuple
       return self.map_axis_tuple(ax_map)
     os = self.grad.shape
