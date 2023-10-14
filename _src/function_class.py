@@ -12,7 +12,7 @@ from lapjax.func_utils import lap_print, get_name, get_hash, vgd_f, F
 from lapjax.axis_utils import get_op_axis
 from lapjax.laptuple import LapTuple, TupType
 from lapjax.laputils import (
-  iter_func, lap_setter, 
+  iter_func, lap_setter, lap_counter,
   check_single_args, check_pure_kwargs, check_lapcount_args,
 )
 from lapjax.sparsutils import (
@@ -108,6 +108,8 @@ class FLinear(FBase):
     # Standard bug will be raised here.
     val_out = pf(*iter_func(args))    
 
+    # Below we compute the *spars* and extracted *l_args*, 
+    # according to the function type.
     if get_hash(f) == get_hash(jnp.concatenate):
       check_single_args(fname, args)
       op_axis = kwargs.get("axis", 0)
@@ -125,7 +127,27 @@ class FLinear(FBase):
         l_args = (arrays, )
       lap_print(f"    Discard sparsity to {spars.tups}.")
 
-    else: 
+    elif get_hash(f) == get_hash(jnp.where):
+      condition, x, y = args
+      condition = iter_func(condition)
+      if lap_counter([x, y]) == 0:
+        return val_out  # only condition is LapTuple, return ndarray
+      elif lap_counter([x, y]) == 1:
+        spars = x.spars if isinstance(x, LapTuple) else y.spars
+        l_args = (condition, 
+                  x if isinstance(x, LapTuple) else LapTuple(x, spars=spars), 
+                  y if isinstance(y, LapTuple) else LapTuple(y, spars=spars), 
+        )
+      else:
+        assert isinstance(x, LapTuple) and isinstance(y, LapTuple)
+        assert x.spars.get_id() == x.spars.get_id(), \
+          f"Cannot apply where to LapTuples w.r.t. different inputs."
+        spars, gs = broadcast_spars([x.spars, y.spars], 
+                                    [x.grad, y.grad])
+        l_args = (condition,) + tuple(LapTuple(w.value, g, w.lap, spars) 
+                                      for w,g in zip([x,y], gs))
+
+    else: # only one LapTuple, i.e. args[0]
       array: LapTuple = args[0]
       ax_map = get_axis_map(f, *args, **kwargs)
       if get_hash(f) in get_hash([jnp.split, jnp.array_split]):
