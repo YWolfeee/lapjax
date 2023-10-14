@@ -40,6 +40,8 @@ class FBase(object):
   ftype = FType.EMPTY
 
   def __init__(self) -> None:
+    from lapjax.wrap_list import wrap_func_dict
+    self.funclist = wrap_func_dict[self.ftype]
     for w in self.funclist:  # Can only add function type inside
       assert type(w) in self.support_type, \
       f"{w.__name__} has type {type(w)}, but only support {self.support_type}!"
@@ -75,15 +77,6 @@ class FBase(object):
 class FLinear(FBase):
   classname = "Linear"
   ftype = FType.LINEAR
-  funclist = [
-    jnp.reshape, jnp.transpose, jnp.swapaxes,
-    jnp.split, jnp.array_split, jnp.concatenate,
-    jnp.squeeze, jnp.expand_dims,
-    jnp.repeat, jnp.tile,
-    jnp.where, jnp.triu, jnp.tril,
-    jnp.sum, jnp.mean, #jnp.einsum, # einsum removed.
-    jnp.broadcast_to,
-  ]
 
   def __init__(self) -> None:
     super(FLinear, self).__init__()
@@ -203,14 +196,6 @@ class FLinear(FBase):
 class FConstruction(FBase):
   classname = "Construction"
   ftype = FType.CONSTRUCTION
-  funclist = [
-    jnp.shape, jnp.size,
-    jnp.eye, jnp.array,
-    jnp.ones, jnp.ones_like,
-    jnp.zeros, jnp.zeros_like,
-    jnp.asarray, jnp.sign,
-    jlax.stop_gradient,
-  ]
 
   def __init__(self) -> None:
     super(FConstruction,self).__init__()
@@ -222,22 +207,6 @@ class FConstruction(FBase):
 class FElement(FBase):
   classname = "Element-wise"
   ftype = FType.ELEMENT
-  funclist = [
-    jnp.sin, jnp.cos, jnp.tan,
-    jnp.arcsin, jnp.arccos, jnp.arctan,
-    jnp.arcsinh, jnp.arccosh, jnp.arctanh,
-    jnp.sinh, jnp.cosh, jnp.tanh,
-    jnp.exp, jnp.log,
-    jnp.square, jnp.sqrt, jnp.power,
-    jnp.abs, jnp.absolute,
-    jlax.sin, jlax.cos, jlax.tan,
-    jlax.asin, jlax.acos, jlax.atan, jlax.atan2,
-    jlax.asinh, jlax.acosh, jlax.atanh, 
-    jlax.exp, jlax.log, 
-    jlax.square, jlax.sqrt, jlax.rsqrt, 
-    jlax.pow, jlax.integer_pow,
-    jlax.abs, 
-  ]
 
   def __init__(self) -> None:
     super(FElement,self).__init__()
@@ -266,9 +235,6 @@ class FElement(FBase):
 class FOverload(FBase):
   classname = "Overload"
   ftype = FType.OVERLOAD
-  funclist = [
-    jnp.add, jnp.subtract, jnp.multiply, jnp.divide, jnp.true_divide
-  ]
 
   def __init__(self) -> None:
     super(FOverload, self).__init__()
@@ -295,9 +261,6 @@ class FOverload(FBase):
 class FMerging(FBase):
   classname = "Merging"
   ftype = FType.MERGING
-  funclist = [
-    jnp.linalg.norm, jnp.prod,
-  ]
 
   def __init__(self) -> None:
     super(FMerging, self).__init__()
@@ -361,14 +324,6 @@ class FMerging(FBase):
 class FCustomized(FBase):
   classname = "Customized"
   ftype = FType.CUSTOMIZED
-  funclist = [
-    jnp.matmul, jnp.dot,
-    jnp.max, jnp.min,
-    jnp.amax, jnp.amin,
-    jnp.linalg.slogdet,
-    jax.nn.logsumexp,
-    jax.nn.softmax
-  ]
 
   custom_dict = {}  # user defined function
 

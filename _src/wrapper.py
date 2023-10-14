@@ -40,11 +40,10 @@ def _lapwrapper (wrapped_f: F) -> F:
 def _wrap_module (module, new_module):
   alls = [w for w in dir(module) if not w.startswith('_')]
   for name in alls:
+    if hasattr(new_module, name):
+      continue
     val = getattr(module, name)
     if callable(val):
       setattr(new_module, name, _lapwrapper(val))
     else:
-      if ismodule(val) and hasattr(new_module, name): 
-        # This has been over-write by lapjax already.
-        continue
       setattr(new_module, name, val)
