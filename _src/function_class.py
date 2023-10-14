@@ -333,6 +333,10 @@ class FCustomized(FBase):
   def __init__(self) -> None:
     super(FCustomized, self).__init__()
 
+  def add_wrap(self, f: F, cst_f: F):
+    super().add_wrap(f, cst_f)
+    self.custom_dict[f.__hash__()] = cst_f  # call cst_f when f is called
+
   def execute(self, f, *args, **kwargs):
     fname = get_name(f)
     if get_hash(f) in get_hash([jnp.max, jnp.min, jnp.amax, jnp.amin,]):
@@ -497,6 +501,9 @@ class FCustomized(FBase):
       unnormalized = my_jnp.exp(array - stop_gradient(x_max))
       r_args = (unnormalized,) + args[1:]
       return unnormalized / my_jnp.sum(*r_args, **kwargs)
+    
+    elif get_hash(f) in self.custom_dict.keys():  # user defined function
+      return self.custom_dict[get_hash(f)](*args, **kwargs)
 
 fconstruction = FConstruction()
 flinear = FLinear()

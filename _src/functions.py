@@ -25,37 +25,101 @@ def get_wrap_by_f(wrapped_f: F) -> FBase:
 def get_wrap_by_type(wrap_type: FType) -> FBase:
   return [w for w in func_type if w.ftype == wrap_type][0]
 
-def custom_wrap(f: F, custom_type: FType, cst_f: F = None) -> FBase:
-  """Bind a self-defined function `f` to a funtion type, or to the `cst_f`.
-  When `cst_f` is None, custom_type 
-  This will allow the dispatch to treat the return function as this type.
+def custom_wrap(f: F, custom_type: FType, cst_f: F = None, overwrite: bool = False) -> FBase:
+  """Wrap a jax function that is not handled by lapjax.
+  You can bind `f` to an existing funtion type, 
+  or to your customized function `cst_f` if `custom_type=FType.CUSTOMIZED`.
+  
+  Example: to bind `lapjax.numpy.exp2` that is not handled by lapjax,
+  ```
+  from lapjax.numpy import exp2
+  from lapjax import custom_wrap, FType
+
+  custom_wrap(jnp.exp2, FType.ELEMENT)
+  ```
 
   Args:
-      f (F): the function you want to bind to a predefined type.
-      custom_type (FType): the function type you want to bind to.
+    f (F): the function that is not handled by lapjax.
+    custom_type (FType): the function type to be binded, could be any FType 
+      except FType.OVERLOAD.
+    cst_f (F, optional): the customized function with identical input and 
+      output structure as `f`, except that the ndarray is replaced to the 
+      LapTuple. Defaults to None.
+    overwrite (bool, optional): whether to overwrite existing binding.
 
-  Returns:
-      lapjax wrapped f.
-  """
+  FTypes:
+    CONSTURCTION: the function is used to construct arrays that does not depend 
+      on the input, i.e., the output has zero gradient and laplacian w.r.t. the 
+      input. Examples: jnp.ones, jnp.zeros, etc.
+    LINEAR: the function is 'linear' in a sense that the out gradient and 
+      laplacian could be obtained by directly applied the function. Notice that 
+      since part of the lapjax acceleration comes from the sparse 
+      representation of the gradient, wrapping a linear function in a general 
+      way will cause the sparsity loss. At this point, you could customized the 
+      function for LapTuple inputs youself and bind to `CUSTOMIZED` type. 
+      Examples: transpose, reshape, etc.
+    ELEMENT: the function is element-wise, i.e., each output element is a 
+      function of each element of the input. Examples: jnp.sin, jnp.exp, etc.
+    MERGING: the function is merging several axes and leaves the rest axes 
+      unchanged, or the output is simply a scaler. Examples: jnp.sum, jnp.
+      nanmean, etc.
+    CUSTOMIZED: functions that do not belong to any FType above. You need to 
+      customize a version for LapTuple inputs. Examples: jnp.matmul, jnp.dot, 
+      etc.
+
+    Tips:
+      1. When warpping new functions, make sure that you understand the 
+        sematics correctly. For instance, ReLU can be binded to `ELEMENT` type, 
+        but it is not differentiable at the origin. This could cause strange 
+        laplacian output.
+      2. Bindding a function to `ELEMENT` and `CONSTRUCTION` is welcome, as all 
+        acceleration is automatically compatible. However, be careful when 
+        bindding to `LINEAR` and `MERGING`. It is possible to cause significant 
+        deceleartion.
+      3. To bind a function to `CUSTOMIZED`, the major difficulty beyond 
+        mathematical derivation is to compute the SparseInfo of the output. You 
+        could refer to the existing functions for examples. Generally, you can 
+        discard the sparsity across the operating axes first, and then perform 
+        the computation normally. An example of `lapjax.numpy.linalg.slogdet` 
+        that computes the log value of the determinant of a tensor along the 
+        last two axes:
+        ```
+        def cst_slogdet (*args, **kwargs):  # same as jnp.linalg.slogdet, except that ndarray is replaced to LapTuple
+          a: LapTuple = args[0] # LapTuple
+          # since it operates on the last two axes, we compute the axis_map as belows
+          ax_map = {w:w for w in range(args[0].ndim - 2)}
+          ax_map.update({args[0].ndim-2: None, args[0].ndim-1: None})
+          a_discard: LapTuple = a.map_axis(ax_map) # discard the sparsity across the last two axes
+
+          # compute the output value, gradient, and laplacian according to mathemtical derivations
+          val, grad, lap = a_discard.to_tuple()
+          nval = jnp.linalg.slogdet(val)
+          ngrad = ...
+          nlap = ...
+          return nval[0], LapTuple(nval[1], ngrad, nlap, a_discard.spars) # return the sign and the log of determinant.
+        ```
+        
+    """
   assert custom_type in FType, "Custom type should be one of the predefined FTypes."
   if custom_type == FType.OVERLOAD:
     raise ValueError("Overload type is not allowed for custom wrap.")
+  if not overwrite and is_wrapped(f):
+    raise ValueError(f"Function '{f.__name__}' is already wrapped. " + \
+                     "To overwrite, please set overwrite=True.")
   wrap_class = get_wrap_by_type(custom_type)
   if custom_type != FType.CUSTOMIZED:
     wrap_class.add_wrap(f)
-    print(f"Successfully bind function '{f.__name__}' to {custom_type}.\n"+\
-          "Notice that if custom_type is `FLinear`, " + \
-          "you might loss the sparsity.\n" + \
-          "Please consider customize the function and bind to `CUSTOMIZED`."
-          )
 
   else:
     assert cst_f is not None and callable(cst_f), \
       "When custom_type is CUSTOMIZED, cst_f should be a callable function."
-
-    
-    raise NotImplementedError("Customized wrap is not supported yet.")
-
+    wrap_class.add_wrap(f, cst_f)  
+  
+  print(f"Successfully bind function '{f.__name__}' to {custom_type}.\n"+\
+        "Notice that if custom_type is `FLinear`, " + \
+        "you might loss the sparsity.\n" + \
+        "Please consider customize the function and bind to `CUSTOMIZED`."
+        )
   return wrap_class
 
 def lap_dispatcher (wrapped_f: F,
