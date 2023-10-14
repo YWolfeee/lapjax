@@ -24,5 +24,6 @@ class LapConfig(object):
   def __init__(self) -> None:
     self.autolap = AutoLap()    
     self.debug_print = False
+    self.custom_wrap_warned = False
     
 lapconfig = LapConfig()

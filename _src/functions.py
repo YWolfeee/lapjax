@@ -106,6 +106,9 @@ def custom_wrap(f: F, custom_type: FType, cst_f: F = None, overwrite: bool = Fal
   if not overwrite and is_wrapped(f):
     raise ValueError(f"Function '{f.__name__}' is already wrapped. " + \
                      "To overwrite, please set overwrite=True.")
+  elif is_wrapped(f):
+    ori_cls = get_wrap_by_f(f)
+    ori_cls.remove_wrap(f)
   wrap_class = get_wrap_by_type(custom_type)
   if custom_type != FType.CUSTOMIZED:
     wrap_class.add_wrap(f)
@@ -115,11 +118,14 @@ def custom_wrap(f: F, custom_type: FType, cst_f: F = None, overwrite: bool = Fal
       "When custom_type is CUSTOMIZED, cst_f should be a callable function."
     wrap_class.add_wrap(f, cst_f)  
   
-  print(f"Successfully bind function '{f.__name__}' to {custom_type}.\n"+\
-        "Notice that if custom_type is `FLinear`, " + \
-        "you might loss the sparsity.\n" + \
-        "Please consider customize the function and bind to `CUSTOMIZED`."
-        )
+  print(f"Successfully bind function '{f.__name__}' to {custom_type}.")
+  from lapjax.lapconfig import lapconfig
+  if not lapconfig.custom_wrap_warned:
+    print("Notice that if custom_type is `FLinear`, " + \
+          "you might loss the sparsity.\n" + \
+          "Please consider customize the function and bind to `CUSTOMIZED`."
+          )
+    lapconfig.custom_wrap_warned = True
   return wrap_class
 
 def lap_dispatcher (wrapped_f: F,

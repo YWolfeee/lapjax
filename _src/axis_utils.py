@@ -15,12 +15,16 @@ AX_MAP = Dict[Union[Tuple[int], int], Union[Tuple[int], int, None]]
 
 def mod_axis(axis: AXIS, length: int) -> AXIS:
   # Return axis % length
+  if length == 0:
+    f = lambda x: None if x is None else 0
+  else:
+    f = lambda x: None if x is None else x % length
   if type(axis) == int:
-    return axis % length
+    return f(axis)
   elif type(axis) == tuple:
-    return tuple([None if w is None else w % length for w in axis])
+    return tuple([f(w) for w in axis])
   elif type(axis) == list:
-    return [None if w is None else w % length for w in axis]
+    return [f(w) for w in axis]
   raise  
 
 def get_op_axis (*args, **kwargs) -> Tuple[Set[int], tuple, dict] :
@@ -42,6 +46,8 @@ def get_op_axis (*args, **kwargs) -> Tuple[Set[int], tuple, dict] :
     axis = list(range(len(p_args[0].shape)))
   if type(axis) not in [list, tuple]:
     axis = [axis]
+  if len(axis) == 0:
+    return {0}, p_args, p_kwargs
   axis = set(mod_axis(axis, p_args[0].ndim))
   
   return axis, p_args, p_kwargs

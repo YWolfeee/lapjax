@@ -12,7 +12,7 @@ from lapjax.func_utils import lap_print, get_name, get_hash, vgd_f, F
 from lapjax.axis_utils import get_op_axis
 from lapjax.laptuple import LapTuple, TupType
 from lapjax.laputils import (
-  iter_func, lap_setter, lap_counter,
+  iter_func, lap_setter, lap_counter, lap_extractor,
   check_single_args, check_pure_kwargs, check_lapcount_args,
 )
 from lapjax.sparsutils import (
@@ -64,6 +64,10 @@ class FBase(object):
     self.funclist.append(f)
     self.updated()
 
+  def remove_wrap(self, f: F):
+    self.funclist.remove(f)
+    self.updated()
+
   def __str__(self) -> str:
     return self.classname + ": " + str(self.namelist)
 
@@ -78,6 +82,7 @@ class FLinear(FBase):
     jnp.repeat, jnp.tile,
     jnp.where, jnp.triu, jnp.tril,
     jnp.sum, jnp.mean, #jnp.einsum, # einsum removed.
+    jnp.broadcast_to,
   ]
 
   def __init__(self) -> None:
@@ -128,24 +133,39 @@ class FLinear(FBase):
       lap_print(f"    Discard sparsity to {spars.tups}.")
 
     elif get_hash(f) == get_hash(jnp.where):
-      condition, x, y = args
-      condition = iter_func(condition)
+      out_sh = val_out.shape
+      cnd, x, y = args
+      cnd = cnd.value if isinstance(cnd, LapTuple) else cnd
       if lap_counter([x, y]) == 0:
         return val_out  # only condition is LapTuple, return ndarray
       elif lap_counter([x, y]) == 1:
         spars = x.spars if isinstance(x, LapTuple) else y.spars
-        l_args = (condition, 
-                  x if isinstance(x, LapTuple) else LapTuple(x, spars=spars), 
-                  y if isinstance(y, LapTuple) else LapTuple(y, spars=spars), 
-        )
+        if isinstance(x, LapTuple):
+          newg = spars.broadcast_dim(out_sh, x.grad)
+          x = LapTuple(x.value, newg, x.lap, spars)
+          y = LapTuple(jnp.broadcast_to(y, out_sh), spars=spars)
+        else:
+          newg = spars.broadcast_dim(out_sh, y.grad)
+          x = LapTuple(jnp.broadcast_to(x, out_sh), spars=spars)
+          y = LapTuple(y.value, newg, y.lap, spars)
+        l_args = (cnd, x, y)
+
       else:
         assert isinstance(x, LapTuple) and isinstance(y, LapTuple)
         assert x.spars.get_id() == x.spars.get_id(), \
           f"Cannot apply where to LapTuples w.r.t. different inputs."
-        spars, gs = broadcast_spars([x.spars, y.spars], 
-                                    [x.grad, y.grad])
-        l_args = (condition,) + tuple(LapTuple(w.value, g, w.lap, spars) 
-                                      for w,g in zip([x,y], gs))
+        from lapjax.numpy import broadcast_to as my_broad
+        x, y = my_broad(x, out_sh), my_broad(y, out_sh)
+        spars, gs = broadcast_spars([x.spars, y.spars], [x.grad, y.grad])
+        l_args = (cnd,) + tuple(LapTuple(w.value, g, w.lap, spars) 
+                                for w,g in zip([x,y], gs))
+
+    elif get_hash(f) == get_hash(jnp.broadcast_to):
+      array = deepcopy(args[0])
+      assert isinstance(array, LapTuple)
+      shape = args[1] if len(args) == 2 else kwargs.get("shape")
+      array.spars.broadcast_dim(shape, array.grad)
+      spars, l_args = array.spars, args
 
     else: # only one LapTuple, i.e. args[0]
       array: LapTuple = args[0]
@@ -358,6 +378,10 @@ class FCustomized(FBase):
   def add_wrap(self, f: F, cst_f: F):
     super().add_wrap(f, cst_f)
     self.custom_dict[f.__hash__()] = cst_f  # call cst_f when f is called
+
+  def remove_wrap(self, f: F):
+    super().remove_wrap(f)
+    self.custom_dict.pop(f.__hash__())
 
   def execute(self, f, *args, **kwargs):
     fname = get_name(f)
