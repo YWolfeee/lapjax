@@ -75,7 +75,7 @@ def create_py(dest: os.path, src: os.path, pkg_name: str):
         continue
       with open(destpath, 'w') as f:
         for pkg in os.listdir(src):
-          if pkg.endswith('.py') and pkg != '__init__.py':
+          if pkg.endswith('.py') and pkg not in ['__init__.py', 'iree.py']:
             # import from wrapped module
             f.write(f'from lap{pkg_name} import {pkg[:-3]} as {pkg[:-3]}\n')
         f.write(file_content)

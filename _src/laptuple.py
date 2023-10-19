@@ -379,4 +379,5 @@ def lap_mul(x: LapTuple, y: LapTuple) -> LapTuple:
   l = 2 * jnp.sum(gs[0] * gs[1], axis=0) + y.lap * x.value + x.lap * y.value
   return LapTuple(v, g, l, spars)
 
+
 import lapjax.sparsutils as sutils

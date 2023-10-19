@@ -32,6 +32,13 @@ from lapjax import random as random
 from lapjax import stages as stages
 from lapjax import tree_util as tree_util
 from lapjax import util as util
+from lapjax import _src as _src
+from lapjax import scipy as scipy
+from lapjax import sharding as sharding
+from lapjax import dlpack as dlpack
+from lapjax import flatten_util as flatten_util
+from lapjax import example_libraries as example_libraries
+from lapjax import experimental as experimental
 
 import sys, importlib
 from lapjax.wrapper import _wrap_module
