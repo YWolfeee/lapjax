@@ -26,16 +26,16 @@ class LapTuple(object):
     val.shape == grad.shape[1:] == lap.shape
   ```
   Here, grad.shape[0] is the gradient dimension, which is determined by the sparsity.
-
+  
   For example, for LapTuple x and y, we have:
   ```
   x + y = LapTuple(x.value + y.value, 
-           x.grad + y.grad, 
-           x.lap + y.lap)
+                   x.grad + y.grad, 
+                   x.lap + y.lap)
 
   x * y = LapTuple(x.value * y.value, 
-           x.grad * y.value[None] + y.grad * x.value[None],
-           2 * jnp.sum(x.grad * y.grad, axis=0) + x.lap * y.value + y.lap * x.value)
+                   x.grad * y.value[None] + y.grad * x.value[None],
+                   2 * jnp.sum(x.grad * y.grad, axis=0) + x.lap * y.value + y.lap * x.value)
   ``` 
 
   To construct a LapTuple for the input x, simply use 
@@ -63,17 +63,13 @@ class LapTuple(object):
 
   To obtain the value, gradient, and laplacian, use `.get(TupType)` method, or
   simply use `LapTuple.value, LapTuple.grad, LapTuple.lap`.
-
-
-
   """
-
   def __init__(self, value: jnp.ndarray,
-         grad: jnp.ndarray = None,
-         lap: jnp.ndarray = None,
-         spars: SparsInfo = None,
-         *,
-         is_input: bool = False):
+                     grad: jnp.ndarray = None,
+                     lap: jnp.ndarray = None,
+                     spars: SparsInfo = None,
+                     *,
+                     is_input: bool = False):
     """Initialize LapTuple. 
     value is necessary.
     (1) Direct Construct (Require sparsity and all arrays)
@@ -143,7 +139,7 @@ class LapTuple(object):
          "To construct non-input LapTuple with zero `grad`,"
          " `lap` should be None and `spars` should be passed.")
       self.grad = jnp.zeros((spars.get_gdim(), ) + value.shape,
-                  dtype=value.dtype)
+                            dtype=value.dtype)
       self.lap = jnp.zeros_like(value, dtype=value.dtype)
       self.spars = spars
 
@@ -186,7 +182,7 @@ class LapTuple(object):
     os = self.grad.shape
     new_spars = deepcopy(self.spars)
     grad = new_spars.discard(set([w for w, v in ax_map.items() if v is None]),
-                 self.grad)
+                             self.grad)
     new_spars.swap_axis({w: v for w, v in ax_map.items() if v is not None})
     if os != grad.shape:
       lap_print(f"  Update grad shape from {os} to {grad.shape}")
@@ -261,7 +257,7 @@ class LapTuple(object):
       v = self.value + x.value
       assert self.spars.get_id() == x.spars.get_id()
       spars, gs = sutils.broadcast_spars([self.spars, x.spars],
-                         [self.grad, x.grad])
+                                         [self.grad, x.grad])
       g = gs[0] + gs[1]
       l = self.lap + x.lap
       return LapTuple(v, g, l, spars)
@@ -274,9 +270,9 @@ class LapTuple(object):
       spars = deepcopy(self.spars)
       grad = spars.broadcast_dim(vshape, self.grad)
       return LapTuple(value=self.value + x,
-              grad=grad,
-              lap=jnp.broadcast_to(self.lap, vshape),
-              spars=spars)
+                      grad=grad,
+                      lap=jnp.broadcast_to(self.lap, vshape),
+                      spars=spars)
 
   def __radd__(self, x: Union[int, float, jnp.ndarray, 'LapTuple']) -> 'LapTuple':
     return self + x
@@ -358,7 +354,7 @@ class LapTuple(object):
   @classmethod
   def identical(cls, x, y) -> bool:
     ne_fg = (x.value != y.value).any() + (x.grad != y.grad).any() + \
-        (x.lap != y.lap).any() + (x.spars != y.spars)
+            (x.lap != y.lap).any() + (x.spars != y.spars)
     return not ne_fg
 
   def __identical(self, y) -> bool:
@@ -370,7 +366,7 @@ def reciprocal_withL(input_x: LapTuple) -> LapTuple:
   y = 1/x
   y_nabla = -x_nabla/(x[None]**2)
   y_nabla2 = -x_nabla2/(x**2) + \
-    2 * jnp.sum(x_nabla ** 2, axis=0) * (y**3)
+             2 * jnp.sum(x_nabla ** 2, axis=0) * (y**3)
   return LapTuple(y, y_nabla, y_nabla2, input_x.spars)
 
 
@@ -378,7 +374,7 @@ def lap_mul(x: LapTuple, y: LapTuple) -> LapTuple:
   v = x.value * y.value
   assert x.spars.get_id() == y.spars.get_id()
   spars, gs = sutils.broadcast_spars([x.spars, y.spars],
-                     [x.grad, y.grad])
+                                     [x.grad, y.grad])
   g = gs[0] * y.value[None] + gs[1] * x.value[None]
   l = 2 * jnp.sum(gs[0] * gs[1], axis=0) + y.lap * x.value + x.lap * y.value
   return LapTuple(v, g, l, spars)

@@ -113,7 +113,7 @@ setup(
   author='Haotian Ye',
   author_email='',
   description='A package for computing the laplacian automatically '
-        'using a technique budded "Forward Laplacian".',
+              'using a technique budded "Forward Laplacian".',
   long_description=long_description,
   long_description_content_type='text/markdown',
   url='https://github.com/YWolfeee/lapjax',

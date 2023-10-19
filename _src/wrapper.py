@@ -29,12 +29,12 @@ def _lapwrapper(wrapped_f: F) -> F:
 
     # Pass wrapped_f and LapTuple indicator to dispatcher.
     tuplized_f = lap_dispatcher(wrapped_f,
-                  lap_checker(args),
-                  lap_checker(kwargs))
+                                lap_checker(args),
+                                lap_checker(kwargs))
 
     # Compute the value with tuplized arguments.
     return tuplized_f(*iter_func(args, tupler),
-              **iter_func(kwargs, tupler))
+                      **iter_func(kwargs, tupler))
 
   entrance.__hash__ = wrapped_f.__hash__  # used as main key in wrap classes
   return entrance
