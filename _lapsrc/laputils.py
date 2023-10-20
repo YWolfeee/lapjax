@@ -13,8 +13,8 @@ def check_lapcount_args (fname, args):
 
 def check_single_args (fname, args):
   assert len(args) == 1, \
-    (f"For the sake of LapJAX acceleration, we accept and only accept a single "
-    "position argument when calling `{fname}`. "
+    ("For the sake of LapJAX acceleration, we accept and only accept a single "
+    f"position argument when calling `{fname}`. "
     "Please pass the rest as keyword arguments.")
 
 def check_pure_kwargs (fname, kwargs):
