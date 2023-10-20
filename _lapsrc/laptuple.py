@@ -5,16 +5,14 @@ import enum
 import jax
 import jax.numpy as jnp
 
-from lapjax.axis_utils import AX_MAP
-from lapjax.func_utils import lap_print, rewriting_take
-from lapjax.sparsinfo import SparsInfo, InputInfo
-
+from lapjax.lapsrc.axis_utils import AX_MAP
+from lapjax.lapsrc.func_utils import lap_print, rewriting_take
+from lapjax.lapsrc.sparsinfo import SparsInfo, InputInfo
 
 class TupType(enum.Enum):
   VALUE = 0
   GRAD = 1
   LAP = 2
-
 
 class LapTuple(object):
   """
@@ -84,7 +82,6 @@ class LapTuple(object):
       grad = jnp.zeros((spars.get_gdim(),) + value.shape),
       lap  = jnp.zeros_lie(value)
       ```
-
     (3) Create for input (No sparsity, grad, and lap)
     When is_input is True, grad, lap, and spars should be None.
       In such case, value is regraded as the initial input, i.e.
@@ -156,7 +153,7 @@ class LapTuple(object):
       lap_print(f"  Discard grad shape from {os} to {grad.shape}")
     return LapTuple(self.value, grad, self.lap, new_spars)
 
-  def set_dense(self, force=False) -> "LapTuple":
+  def set_dense(self, force = False) -> "LapTuple":
     new_spars = deepcopy(self.spars)
     grad = new_spars.set_dense(self.grad, force=force)
     return LapTuple(self.value, grad, self.lap, new_spars)
@@ -208,7 +205,7 @@ class LapTuple(object):
       args = (args,)
     return my_jnp.reshape(self, *args, order=order)
 
-  def transpose(self, axes=None) -> 'LapTuple':
+  def transpose(self, axes = None) -> 'LapTuple':
     from lapjax import numpy as my_jnp
     return my_jnp.transpose(self, axes)
 
@@ -237,12 +234,11 @@ class LapTuple(object):
 
     # discard gradient and map spars accordingly
     _self = self.map_axis(sutils.getitem_map(indexer, self.ndim))
-    _self = LapTuple(_self.value[key], vs(
-      _self.grad, key), _self.lap[key], _self.spars)
+    _self = LapTuple(_self.value[key], vs(_self.grad, key), _self.lap[key], _self.spars)
 
     # handle `None` in key
-    map_to = [w for w in range(_self.value.ndim) if
-          w not in indexer.newaxis_dims]
+    map_to = [w for w in range(_self.value.ndim) if \
+              w not in indexer.newaxis_dims]
     _self.spars.swap_axis({i: w for i, w in enumerate(map_to)})
 
     return _self
@@ -285,7 +281,6 @@ class LapTuple(object):
     return (-self) + x
 
   def __mul__(self, x: Union[int, float, jnp.ndarray, 'LapTuple']) -> 'LapTuple':
-    if isinstance(x, LapTuple):
       return lap_mul(self, x)
     if isinstance(x, float) or isinstance(x, int):
       return LapTuple(self.value*x, self.grad*x, self.lap*x, self.spars)
@@ -361,7 +356,6 @@ class LapTuple(object):
   def __identical(self, y) -> bool:
     return LapTuple.identical(self, y)
 
-
 def reciprocal_withL(input_x: LapTuple) -> LapTuple:
   x, x_nabla, x_nabla2 = input_x.to_tuple()
   y = 1/x
@@ -380,5 +374,5 @@ def lap_mul(x: LapTuple, y: LapTuple) -> LapTuple:
   l = 2 * jnp.sum(gs[0] * gs[1], axis=0) + y.lap * x.value + x.lap * y.value
   return LapTuple(v, g, l, spars)
 
+from lapjax.lapsrc import sparsutils as sutils
 
-import lapjax.sparsutils as sutils

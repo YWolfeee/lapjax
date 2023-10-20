@@ -4,10 +4,10 @@ from copy import deepcopy
 
 import jax
 import jax.numpy as jnp
-from lapjax.func_utils import lap_print
-from lapjax.axis_utils import AX_MAP, SHAPE, merge_neg, parse_splits
+from lapjax.lapsrc.func_utils import lap_print
+from lapjax.lapsrc.axis_utils import AX_MAP, SHAPE, merge_neg, parse_splits
 
-from lapjax.func_utils import lap_print
+from lapjax.lapsrc.func_utils import lap_print
 
 class InputInfo (object):
   def __init__(self, size: int, id: int = None) -> None:

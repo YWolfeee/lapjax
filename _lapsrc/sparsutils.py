@@ -6,15 +6,15 @@ import jax
 import jax.numpy as jnp
 from jax._src.api_util import _ensure_index_tuple
 from jax._src.numpy.lax_numpy import _Indexer
-from lapjax.axis_utils import (
+from lapjax.lapsrc.axis_utils import (
   AX_MAP, SHAPE, S_AXES, 
   map_axis_from_shape, reduce_axis,
 )  
-from lapjax.func_utils import lap_print, get_name, get_hash, F
-from lapjax.axis_utils import mod_axis, get_op_axis, merge_neg
-from lapjax.laptuple import LapTuple
-from lapjax.laputils import check_single_args
-from lapjax.sparsinfo import SparsInfo, InputInfo, SparsTuple
+from lapjax.lapsrc.func_utils import lap_print, get_name, get_hash, F
+from lapjax.lapsrc.axis_utils import mod_axis, get_op_axis, merge_neg
+from lapjax.lapsrc.laptuple import LapTuple
+from lapjax.lapsrc.laputils import check_single_args
+from lapjax.lapsrc.sparsinfo import SparsInfo, InputInfo, SparsTuple
 
 def tuple2spars(flat_tups: Tuple[Tuple[int]]) -> SparsInfo:
   """Given a tuplized SparsInfo, return corresponding SparsInfo.
@@ -157,7 +157,7 @@ def get_axis_map (f: F, *args, **kwargs) -> AX_MAP:
   ```
 
   """
-  from lapjax.function_class import flinear
+  from lapjax.lapsrc.function_class import flinear
   fname = get_name(f)
   if get_hash(f) in get_hash([
     # Linear functions

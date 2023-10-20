@@ -2,7 +2,7 @@ import jax
 from jax import numpy as jnp
 from jax import lax as jlax
 
-from lapjax.function_class import FType
+from lapjax.lapsrc.function_class import FType
 
 wrap_func_dict = {
   FType.CONSTRUCTION: [

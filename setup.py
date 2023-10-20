@@ -51,84 +51,88 @@ with open("README.md", "r") as fh:
 
 file_content = \
 "import sys, importlib\n" + \
-"from lapjax.wrapper import _wrap_module\n" + \
+"from lapjax.lapsrc.wrapper import _wrap_module\n" + \
 "_wrap_module(importlib.import_module(__name__.replace('lapjax', 'jax')), \n" + \
 "             sys.modules[__name__])\n"
 
 def create_py(dest: os.path, src: os.path, pkg_name: str):
-  """
-  For all python files in src, copy the file to dest and change the content
-  to import the file in source. Create `.pyi` files for all `.py` files.
-  """
+    """
+    For all python files in src, copy the file to dest and change the content
+    to import the file in source. Create `.pyi` files for all `.py` files.
+    """
 
-  for filename in os.listdir(src):
-    srcpath = os.path.join(src, filename)
-    destpath = os.path.join(dest, filename)
-    if os.path.isdir(srcpath) and filename != '__pycache__':
-      print(f'Calling create_py for {pkg_name}.{filename} recursively.')
-      if not os.path.exists(destpath):
-        os.mkdir(destpath)
-      create_py(os.path.join(dest, filename), srcpath, f'{pkg_name}.{filename}')
+    for filename in os.listdir(src):
+        srcpath = os.path.join(src, filename)
+        destpath = os.path.join(dest, filename)
+        if os.path.isdir(srcpath) and filename != '__pycache__':
+            print(f'Calling create_py for {pkg_name}.{filename} recursively.')
+            if not os.path.exists(destpath):
+                os.mkdir(destpath)
+            create_py(os.path.join(dest, filename), srcpath, f'{pkg_name}.{filename}')
 
-    elif filename == '__init__.py':    # python init file
-      if os.path.exists(destpath):
-        continue
-      with open(destpath, 'w') as f:
-        for pkg in os.listdir(src):
-          if pkg.endswith('.py') and pkg not in ['__init__.py', 'iree.py']:
-            # import from wrapped module
-            f.write(f'from lap{pkg_name} import {pkg[:-3]} as {pkg[:-3]}\n')
-        f.write(file_content)
-      with open(destpath + 'i', 'w') as f:
-        f.write(f'from {pkg_name} import *')
+        elif filename == '__init__.py':    # python init file
+            if os.path.exists(destpath):
+                continue
+            with open(destpath, 'w') as f:
+                for pkg in os.listdir(src):
+                    if pkg.endswith('.py') and pkg not in ['__init__.py', 'iree.py']:
+                        # import from wrapped module
+                        f.write(f'from lap{pkg_name} import {pkg[:-3]} as {pkg[:-3]}\n')
+                f.write(file_content)
+            with open(destpath + 'i', 'w') as f:
+                f.write(f'from {pkg_name} import *')
 
-    elif filename.endswith('.py'):     # standard python file            
-      with open(destpath, 'w') as f:
-        f.write(file_content)
-      with open(destpath + 'i', 'w') as f:
-        f.write(f'from {pkg_name}.{filename[:-3]} import *')
+        elif filename.endswith('.py'):     # standard python file            
+            with open(destpath, 'w') as f:
+                f.write(file_content)
+            with open(destpath + 'i', 'w') as f:
+                f.write(f'from {pkg_name}.{filename[:-3]} import *')
 
 
 def pre_setup():
-  """Pre-setup function. Clean the directory.
-  Change the `_src` directory to `lapjax` that can be used for setup.
-  Includes the `jax` package structure.
-  """
-  assert os.path.exists('_src'), \
-    "Please run setup.py in the root directory of lapjax."
-  shutil.rmtree('build', ignore_errors=True) 
-  shutil.rmtree('lapjax.egg-info', ignore_errors=True) 
-  # Remove the old `lapjax` directory.
-  if os.path.exists('lapjax'):
-    shutil.rmtree('lapjax')
-  # Copy the `_src` directory to `lapjax`.
-  shutil.copytree('_src', 'lapjax')
-  # Copy the `jax` package structure to `lapjax`.
-  create_py('lapjax', jax.__path__[0], 'jax')
+    """Pre-setup function. Clean the directory.
+    Change the `_lapsrc` directory to `lapjax` that can be used for setup.
+    Includes the `jax` package structure.
+    """
+    assert os.path.exists('_lapsrc'), \
+        "Please run setup.py in the root directory of lapjax."
+    shutil.rmtree('build', ignore_errors=True) 
+    shutil.rmtree('lapjax.egg-info', ignore_errors=True) 
+    # Remove the old `lapjax` directory.
+    if os.path.exists('lapjax'):
+        shutil.rmtree('lapjax')
+    # Copy the `_lapsrc` directory to `lapjax`.
+    os.mkdir('lapjax')
+    shutil.copytree('_lapsrc', 'lapjax/lapsrc')
+    shutil.move('lapjax/lapsrc/__init__.py', 'lapjax/__init__.py')
+    shutil.move('lapjax/lapsrc/__init__.pyi', 'lapjax/__init__.pyi')
+    os.mknod("lapjax/lapsrc/__init__.py")
+    # Copy the `jax` package structure to `lapjax`.
+    create_py('lapjax', jax.__path__[0], 'jax')
 pre_setup()
 
 setup(
-  name='lapjax',
-  version='0.0',
-  author='Haotian Ye',
-  author_email='',
-  description='A package for computing the laplacian automatically '
-              'using a technique budded "Forward Laplacian".',
-  long_description=long_description,
-  long_description_content_type='text/markdown',
-  url='https://github.com/YWolfeee/lapjax',
-  packages=find_packages(exclude=['_src']),
-  include_package_data=True,
-  install_requires=REQUIRED_PACKAGES,
-  extras_require={'testing': ['flake8', 'pylint', 'pytest', 'pytype']},
-  platforms=['any'],
-  license='MIT',
-  classifiers=[
-    'Development Status :: 5 - Production/Stable',
-    'Programming Language :: Python :: 3',
-    'License :: OSI Approved :: MIT License',
-    'Operating System :: OS Independent',
-  ],
+    name='lapjax',
+    version='0.0',
+    author='Haotian Ye',
+    author_email='',
+    description='A package for computing the laplacian automatically '
+                'using a technique budded "Forward Laplacian".',
+    long_description=long_description,
+    long_description_content_type='text/markdown',
+    url='https://github.com/YWolfeee/lapjax',
+    packages=find_packages(exclude=['_lapsrc']),
+    include_package_data=True,
+    install_requires=REQUIRED_PACKAGES,
+    extras_require={'testing': ['flake8', 'pylint', 'pytest', 'pytype']},
+    platforms=['any'],
+    license='MIT',
+    classifiers=[
+        'Development Status :: 5 - Production/Stable',
+        'Programming Language :: Python :: 3',
+        'License :: OSI Approved :: MIT License',
+        'Operating System :: OS Independent',
+    ],
 )
 
 def post_setup():

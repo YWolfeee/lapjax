@@ -7,7 +7,7 @@ from typing import Sequence, Union, Callable, Tuple, Callable, TypeVar
 
 import jax
 import jax.numpy as jnp
-from lapjax.lapconfig import lapconfig
+from lapjax.lapsrc.lapconfig import lapconfig
 
 F = TypeVar("F", bound=Callable)
 

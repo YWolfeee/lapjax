@@ -1,19 +1,17 @@
-# from lapjax.func_utils import wraps
 from inspect import isclass
 from functools import wraps
-from lapjax.functions import F, FType, lap_dispatcher, is_wrapped
-from lapjax.laptuple import LapTuple
+from lapjax.lapsrc.laptuple import LapTuple
+from lapjax.lapsrc.functions import F, FType, lap_dispatcher, is_wrapped
 
-
-def _lapwrapper(wrapped_f: F) -> F:
+def _lapwrapper (wrapped_f: F) -> F:
   """Lapjax wrapper functions. This returns the entrance of wrapper.
   If first checks whether LapTuple exists in args and kwargs.
   If not, return standard call on wrapped_f.
   Otherwise, dispatch to `lap_dispatcher`, which will process input 
     according to wrapped_f.
   """
-  from lapjax.laputils import iter_func, lap_counter, lap_checker, tupler
-
+  from lapjax.lapsrc.laputils import iter_func, lap_counter, lap_checker, tupler
+  
   @wraps(wrapped_f)
   def entrance(*args, **kwargs):
     lap_num = lap_counter(args) + lap_counter(kwargs)
