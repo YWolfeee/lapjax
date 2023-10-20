@@ -75,7 +75,7 @@ def create_py(dest: os.path, src: os.path, pkg_name: str):
                 continue
             with open(destpath, 'w') as f:
                 for pkg in os.listdir(src):
-                    if pkg.endswith('.py') and pkg != '__init__.py':
+                    if pkg.endswith('.py') and pkg not in ['__init__.py', 'iree.py']:
                         # import from wrapped module
                         f.write(f'from lap{pkg_name} import {pkg[:-3]} as {pkg[:-3]}\n')
                 f.write(file_content)
@@ -91,18 +91,18 @@ def create_py(dest: os.path, src: os.path, pkg_name: str):
 
 def pre_setup():
     """Pre-setup function. Clean the directory.
-    Change the `_src` directory to `lapjax` that can be used for setup.
+    Change the `_lapsrc` directory to `lapjax` that can be used for setup.
     Includes the `jax` package structure.
     """
-    assert os.path.exists('_src'), \
+    assert os.path.exists('_lapsrc'), \
         "Please run setup.py in the root directory of lapjax."
     shutil.rmtree('build', ignore_errors=True) 
     shutil.rmtree('lapjax.egg-info', ignore_errors=True) 
     # Remove the old `lapjax` directory.
     if os.path.exists('lapjax'):
         shutil.rmtree('lapjax')
-    # Copy the `_src` directory to `lapjax`.
-    shutil.copytree('_src', 'lapjax')
+    # Copy the `_lapsrc` directory to `lapjax`.
+    shutil.copytree('_lapsrc', 'lapjax')
     # Copy the `jax` package structure to `lapjax`.
     create_py('lapjax', jax.__path__[0], 'jax')
 pre_setup()
@@ -117,7 +117,7 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/YWolfeee/lapjax',
-    packages=find_packages(exclude=['_src']),
+    packages=find_packages(exclude=['_lapsrc']),
     include_package_data=True,
     install_requires=REQUIRED_PACKAGES,
     extras_require={'testing': ['flake8', 'pylint', 'pytest', 'pytype']},

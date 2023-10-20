@@ -147,8 +147,9 @@ class FLinear(FBase):
         assert isinstance(x, LapTuple) and isinstance(y, LapTuple)
         assert x.spars.get_id() == x.spars.get_id(), \
           f"Cannot apply where to LapTuples w.r.t. different inputs."
-        from lapjax.numpy import broadcast_to as my_broad
-        x, y = my_broad(x, out_sh), my_broad(y, out_sh)
+        from lapjax import numpy as my_np
+        x = my_np.broadcast_to(x, out_sh)
+        y = my_np.broadcast_to(y, out_sh)
         spars, gs = broadcast_spars([x.spars, y.spars], [x.grad, y.grad])
         l_args = (cnd,) + tuple(LapTuple(w.value, g, w.lap, spars) 
                                 for w,g in zip([x,y], gs))
@@ -497,9 +498,9 @@ class FCustomized(FBase):
       p_args = (array,) + args[1:]
       x_max = my_jnp.max(*p_args, **kwargs)
 
-      from lapjax.lax import stop_gradient
+      from lapjax import lax
       # TODO: postpone the discard of array when calling substract.
-      unnormalized = my_jnp.exp(array - stop_gradient(x_max))
+      unnormalized = my_jnp.exp(array - lax.stop_gradient(x_max))
       r_args = (unnormalized,) + args[1:]
       return unnormalized / my_jnp.sum(*r_args, **kwargs)
     

@@ -16,6 +16,7 @@ from lapjax.sparsinfo import (
 )
 
 ### Over-write module entrance to lapjax ###
+from lapjax import _src as _src
 from lapjax import abstract_arrays as abstract_arrays
 from lapjax import api_util as api_util
 from lapjax import distributed as distributed

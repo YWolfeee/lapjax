@@ -1,4 +1,3 @@
-# from lapjax.func_utils import wraps
 from inspect import isclass
 from functools import wraps
 from lapjax.functions import F, FType, lap_dispatcher, is_wrapped
