@@ -41,7 +41,8 @@ def _lapwrapper(wrapped_f: F) -> F:
 
 
 def _wrap_module(module, new_module):
-  mem_funcs = ['mean', 'sum', 'min', 'max']
+  import jax.numpy as jnp
+  mem_funcs = [jnp.mean, jnp.sum, jnp.min, jnp.max]
   alls = [w for w in dir(module) if not w.startswith('_')]
   for name in alls:
     if hasattr(new_module, name):
@@ -50,7 +51,7 @@ def _wrap_module(module, new_module):
     if callable(val):
       wrapped_func = _lapwrapper(val)
       setattr(new_module, name, wrapped_func)
-      if name in mem_funcs:
+      if val in mem_funcs:
         setattr(LapTuple, name, wrapped_func)
     else:
       setattr(new_module, name, val)
