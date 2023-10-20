@@ -8,14 +8,14 @@ from jax import vmap
 from jax import numpy as jnp
 from jax import lax as jlax
 
-from lapjax.func_utils import lap_print, get_name, get_hash, vgd_f, F
-from lapjax.axis_utils import get_op_axis
-from lapjax.laptuple import LapTuple, TupType
-from lapjax.laputils import (
+from lapjax.lapsrc.func_utils import lap_print, get_name, get_hash, vgd_f, F
+from lapjax.lapsrc.axis_utils import get_op_axis
+from lapjax.lapsrc.laptuple import LapTuple, TupType
+from lapjax.lapsrc.laputils import (
   iter_func, lap_setter, lap_counter, lap_extractor,
   check_single_args, check_pure_kwargs, check_lapcount_args,
 )
-from lapjax.sparsutils import (
+from lapjax.lapsrc.sparsutils import (
   get_axis_map, 
   shortcut_for_discard, broadcast_spars, 
   matrix_spars, sum_matrix_grad, 
@@ -40,7 +40,7 @@ class FBase(object):
   ftype = FType.EMPTY
 
   def __init__(self) -> None:
-    from lapjax.wrap_list import wrap_func_dict
+    from lapjax.lapsrc.wrap_list import wrap_func_dict
     self.funclist = wrap_func_dict[self.ftype]
     for w in self.funclist:  # Can only add function type inside
       assert type(w) in self.support_type, \
@@ -147,9 +147,9 @@ class FLinear(FBase):
         assert isinstance(x, LapTuple) and isinstance(y, LapTuple)
         assert x.spars.get_id() == x.spars.get_id(), \
           f"Cannot apply where to LapTuples w.r.t. different inputs."
-        from lapjax import numpy as my_np
-        x = my_np.broadcast_to(x, out_sh)
-        y = my_np.broadcast_to(y, out_sh)
+        from lapjax import numpy as my_jnp
+        x = my_jnp.broadcast_to(x, out_sh)
+        y = my_jnp.broadcast_to(y, out_sh)
         spars, gs = broadcast_spars([x.spars, y.spars], [x.grad, y.grad])
         l_args = (cnd,) + tuple(LapTuple(w.value, g, w.lap, spars) 
                                 for w,g in zip([x,y], gs))

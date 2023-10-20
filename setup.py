@@ -51,7 +51,7 @@ with open("README.md", "r") as fh:
 
 file_content = \
 "import sys, importlib\n" + \
-"from lapjax.wrapper import _wrap_module\n" + \
+"from lapjax.lapsrc.wrapper import _wrap_module\n" + \
 "_wrap_module(importlib.import_module(__name__.replace('lapjax', 'jax')), \n" + \
 "             sys.modules[__name__])\n"
 
@@ -102,7 +102,11 @@ def pre_setup():
     if os.path.exists('lapjax'):
         shutil.rmtree('lapjax')
     # Copy the `_lapsrc` directory to `lapjax`.
-    shutil.copytree('_lapsrc', 'lapjax')
+    os.mkdir('lapjax')
+    shutil.copytree('_lapsrc', 'lapjax/lapsrc')
+    shutil.move('lapjax/lapsrc/__init__.py', 'lapjax/__init__.py')
+    shutil.move('lapjax/lapsrc/__init__.pyi', 'lapjax/__init__.pyi')
+    os.mknod("lapjax/lapsrc/__init__.py")
     # Copy the `jax` package structure to `lapjax`.
     create_py('lapjax', jax.__path__[0], 'jax')
 pre_setup()

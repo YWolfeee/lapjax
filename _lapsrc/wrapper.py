@@ -1,6 +1,6 @@
 from inspect import isclass
 from functools import wraps
-from lapjax.functions import F, FType, lap_dispatcher, is_wrapped
+from lapjax.lapsrc.functions import F, FType, lap_dispatcher, is_wrapped
 
 def _lapwrapper (wrapped_f: F) -> F:
   """Lapjax wrapper functions. This returns the entrance of wrapper.
@@ -9,7 +9,7 @@ def _lapwrapper (wrapped_f: F) -> F:
   Otherwise, dispatch to `lap_dispatcher`, which will process input 
     according to wrapped_f.
   """
-  from lapjax.laputils import iter_func, lap_counter, lap_checker, tupler
+  from lapjax.lapsrc.laputils import iter_func, lap_counter, lap_checker, tupler
   
   @wraps(wrapped_f)
   def entrance (*args, **kwargs):

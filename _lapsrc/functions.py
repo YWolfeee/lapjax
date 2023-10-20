@@ -4,14 +4,14 @@ from typing import Any, Mapping, Sequence, Tuple, Union
 import jax
 import jax.numpy as jnp
 
-from lapjax.laptuple import LapTuple, TupType
-from lapjax.func_utils import lap_print
-from lapjax.laputils import (
+from lapjax.lapsrc.laptuple import LapTuple, TupType
+from lapjax.lapsrc.func_utils import lap_print
+from lapjax.lapsrc.laputils import (
   laptupler, lap_counter,
   iter_func, lap_checker, tupler, lap_setter,
 )
-from lapjax.sparsutils import tuple2spars
-from lapjax.function_class import *
+from lapjax.lapsrc.sparsutils import tuple2spars
+from lapjax.lapsrc.function_class import *
 
 def is_wrapped(wrapped_f: F) -> bool:
     return max([wrapped_f.__hash__() in w.hashlist for w in func_type]) == 1
@@ -119,7 +119,7 @@ def custom_wrap(f: F, custom_type: FType, cst_f: F = None, overwrite: bool = Fal
     wrap_class.add_wrap(f, cst_f)  
   
   print(f"Successfully bind function '{f.__name__}' to {custom_type}.")
-  from lapjax.lapconfig import lapconfig
+  from lapjax.lapsrc.lapconfig import lapconfig
   if not lapconfig.custom_wrap_warned:
     print("Notice that if custom_type is `FLinear`, " + \
           "you might loss the sparsity.\n" + \

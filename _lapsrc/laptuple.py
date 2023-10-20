@@ -5,9 +5,9 @@ import enum
 import jax
 import jax.numpy as jnp
 
-from lapjax.axis_utils import AX_MAP
-from lapjax.func_utils import lap_print, rewriting_take
-from lapjax.sparsinfo import SparsInfo, InputInfo
+from lapjax.lapsrc.axis_utils import AX_MAP
+from lapjax.lapsrc.func_utils import lap_print, rewriting_take
+from lapjax.lapsrc.sparsinfo import SparsInfo, InputInfo
 
 class TupType(enum.Enum):
   VALUE = 0
@@ -338,4 +338,4 @@ def lap_mul (x: LapTuple, y: LapTuple) -> LapTuple:
   l = 2 * jnp.sum(gs[0] * gs[1], axis=0) + y.lap * x.value + x.lap * y.value
   return LapTuple(v, g, l, spars)
 
-from lapjax import sparsutils as sutils
+from lapjax.lapsrc import sparsutils as sutils

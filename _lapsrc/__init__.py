@@ -1,19 +1,32 @@
-from lapjax.laptuple import (
+from lapjax.lapsrc.laptuple import (
   LapTuple as LapTuple, 
   TupType as TupType,
 )
-from lapjax.lapconfig import lapconfig as lapconfig
-from lapjax.functions import (
+from lapjax.lapsrc.lapconfig import lapconfig as lapconfig
+from lapjax.lapsrc.functions import (
   vmap as vmap,
   FType as FType,
   custom_wrap as custom_wrap,
   is_wrapped as is_wrapped,
   get_wrap_by_f as get_wrap_by_f,
 )
-from lapjax.sparsinfo import (
+from lapjax.lapsrc.sparsinfo import (
   InputInfo as InputInfo,
   SparsInfo as SparsInfo,
 )
+
+import os as _os
+rig_files = [w for w in _os.listdir(__path__[0]) if 
+             w.endswith('.py') and w != '__init__.py']
+for w in rig_files:
+    try:
+      exec(f'from lapjax import {w[:-3]} as {w[:-3]}')
+    except Exception as e:
+      print(f"Lapjax Warning: when wrapping '{w}',",
+            f"got exception:\n    {e}\n" + \
+            "This won't affect functions of other modules.")
+del rig_files
+del _os
 
 ### Over-write module entrance to lapjax ###
 from lapjax import _src as _src
@@ -35,6 +48,6 @@ from lapjax import tree_util as tree_util
 from lapjax import util as util
 
 import sys, importlib
-from lapjax.wrapper import _wrap_module
+from lapjax.lapsrc.wrapper import _wrap_module
 _wrap_module(importlib.import_module(__name__.replace('lapjax', 'jax')), 
              sys.modules[__name__])

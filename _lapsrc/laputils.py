@@ -2,7 +2,7 @@ from typing import Callable
 
 from jax import numpy as jnp
 
-from lapjax.laptuple import TupType, LapTuple
+from lapjax.lapsrc.laptuple import TupType, LapTuple
 
 #### Argument checking utilities.
 
