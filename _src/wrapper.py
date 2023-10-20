@@ -1,5 +1,5 @@
 # from lapjax.func_utils import wraps
-from inspect import ismodule
+from inspect import isclass
 from functools import wraps
 from lapjax.functions import F, FType, lap_dispatcher, is_wrapped
 from lapjax.laptuple import LapTuple
@@ -48,7 +48,7 @@ def _wrap_module(module, new_module):
     if hasattr(new_module, name):
       continue
     val = getattr(module, name)
-    if callable(val):
+    if callable(val) and not isclass(val):
       wrapped_func = _lapwrapper(val)
       setattr(new_module, name, wrapped_func)
       if val in mem_funcs:
