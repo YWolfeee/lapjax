@@ -15,17 +15,17 @@ class TupType(enum.Enum):
   LAP = 2
 
 class LapTuple(object):
-  """
-  Forward Laplacian wrapped ndarray, with its nabla and laplacian w.r.t input.
-  We support various common operations on jax for LapTuple, where value
-  is processed indentically, and grad and laplacian is calculated accordingly.
-  Specifically, we have:
-  ```
-    val.shape == grad.shape[1:] == lap.shape
-  ```
-  Here, grad.shape[0] is the gradient dimension, which is determined by the sparsity.
-  
-  For example, for LapTuple x and y, we have:
+  def __init__(self, value:jnp.ndarray,
+                     grad:jnp.ndarray = None,
+                     lap: jnp.ndarray = None,
+                     spars: SparsInfo = None,
+                     *,
+                     is_input: bool = False):
+    """
+  `LapTuple` is a ternary array group (an array with its nabla and laplacian w.r.t the input specified in its `SparsInfo`). This is the basic data structure for `LapJAX`.
+  We support various common jax operations for LapTuple, where value
+  is processed indentically, and grad and laplacian is calculated according to 
+  mathematical rules. For example, for LapTuple x and y, we have:
   ```
   x + y = LapTuple(x.value + y.value, 
                    x.grad + y.grad, 
@@ -36,72 +36,52 @@ class LapTuple(object):
                    2 * jnp.sum(x.grad * y.grad, axis=0) + x.lap * y.value + y.lap * x.value)
   ``` 
 
-  To construct a LapTuple for the input x, simply use 
+  ### Data Structure
+  Specifically, we have:
+  ```
+    value.shape == grad.shape[1:] == lap.shape
+  ```
+  Here, `grad.shape[0]` is the gradient dimension, which is determined by the sparsity. When there is no sparsity, `grad.shape[0]` equals the size of the 
+  input, and `grad[idx]` is the gradient of `value` w.r.t the `input[idx]`. In
+  most cases, `grad.shape[0]` is much smaller than the size of the input due to
+  the sparsity. See `SparsInfo` for how we handle the sparsity.
+  To obtain the value, gradient, and laplacian, use `.get(TupType)` method, or
+  simply use `LapTuple.value, LapTuple.grad, LapTuple.lap`.
+
+  The sparsity contributes to the major acceleration of LapJAX. See `SparsInfo` for more details.
+  
+  ### Constructing LapTuple
+  To construct a LapTuple for the input array `x`, simply use 
   ```
   from lapjax import LapTuple, numpy
   x = numpy.eye(3)
   LapTuple(x, is_input=True)
   x.shape # (3, 3)
   ```
-  To construct a LapTuple w.r.t input x with grad zero, use
+  It is highly unrecommended to manually construct a LapTuple for non-input array, unless you know exactly what you want. This is likely to break the sparsity and harm the efficiency severely. To construct a LapTuple w.r.t input x with grad zero, use
   ```
   from lapjax import LapTuple, SparsInfo, numpy
   x = LapTuple(numpy.eye(3), is_input=True)
-  y = LapTuple(numpy.eye(4), spars=SparsInfo(a.spars.input))
-  b.grad.shape  # (9, 4, 4)
+  y = LapTuple(numpy.eye(4), spars=SparsInfo(x.spars.input))
+  y.grad.shape  # (9, 4, 4)
   ```
   To construct a LapTuple w.r.t input x manually, use
   ```
   from lapjax import LapTuple, SparsInfo
   y = LapTuple(value, grad, lap, spars=SparsInfo(x.spars.input)
   ```
-  Notice that the last two methods break the sparsity of the input, 
-  and will harm the efficiency of the computation. When possible,
-  only specify the input and let LapTuple handle the sparsity.
+  Again, specify the input and let LapTuple handle the sparsity when possible.
 
-  To obtain the value, gradient, and laplacian, use `.get(TupType)` method, or
-  simply use `LapTuple.value, LapTuple.grad, LapTuple.lap`.
-
-
-  
+  ### Parameters
+  value (jnp.ndarray): The ndarray to be converted.
+  grad (jnp.ndarray, optional): The gradient of value w.r.t. input. Defaults to 
+    None. We have `grad.shape == (d,) + value.shape`, where `d<=value.size` is 
+    the sparse gradient dimension. 
+  lap (jnp.ndarray, optional): The laplacian of value w.r.t. input. Defaults to 
+    None. We have `lap.shape == value.shape`.
+  spars (SparsTuple, optional): The sparsity tuple of gradient. See `SparsInfo`.
+  is_input (bool, optional): Whether this is the input. Defaults to False.
   """
-  def __init__(self, value:jnp.ndarray,
-                     grad:jnp.ndarray = None,
-                     lap: jnp.ndarray = None,
-                     spars: SparsInfo = None,
-                     *,
-                     is_input: bool = False):
-    """Initialize LapTuple. 
-    value is necessary.
-    (1) Direct Construct (Require sparsity and all arrays)
-    When grad is not None, lap and spars cannot be None, while 
-      is_input must be False.
-      In such case, value.shape = grad.shape[1:] = lap.shape;
-      We explicitly check the dimension of grad.
-    (2) Create constant (No gradient, require sparsity)
-    When grad is None, lap must be None. 
-      sparsity tells the shape of the zero gradient, i.e.
-      ```
-      grad = jnp.zeros((spars.get_gdim(),) + value.shape),
-      lap  = jnp.zeros_lie(value)
-      ```
-    
-    (3) Create for input (No sparsity, grad, and lap)
-    When is_input is True, grad, lap, and spars should be None.
-      In such case, value is regraded as the initial input, i.e.
-      grad = jnp.eye(value.shape[0]), lap = jnp.zeros_like(value)
-      New InputInfo instance will be created accordingly.
-
-    Args:
-        value (jnp.ndarray): The ndarray to be converted.
-        grad (jnp.ndarray, optional): Its gradient to input. Defaults to None.
-          We have grad.shape == input.shape + value.shape. 
-        lap (jnp.ndarray, optional): Its laplacian to input. Defaults to None.
-          We have lap.shape == value.shape
-        spars (SparsTuple, optional): The sparsity tuple of gradient.
-        is_input (bool, optional): Whether value is the initial Input. 
-          Defaults to False.
-    """
     self.value = deepcopy(value)
     self.shape = self.value.shape
     self.size = self.value.size
