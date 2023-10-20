@@ -17,13 +17,13 @@ from lapjax.lapsrc.sparsinfo import (
 
 import os as _os
 rig_files = [w for w in _os.listdir(__path__[0]) if 
-             w.endswith('.py') and w != '__init__.py']
+             w.endswith('.py') and w not in ['__init__.py', 'config.py']]
 for w in rig_files:
     try:
       exec(f'from lapjax import {w[:-3]} as {w[:-3]}')
     except Exception as e:
       print(f"Lapjax Warning: when wrapping '{w}',",
-            f"got exception:\n    {e}\n" + \
+            f"got ImportError:\n    {e}\n" + \
             "This won't affect functions of other modules.")
 del rig_files
 del _os
