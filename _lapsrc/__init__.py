@@ -22,9 +22,10 @@ for w in rig_files:
     try:
       exec(f'from lapjax import {w[:-3]} as {w[:-3]}')
     except Exception as e:
-      print(f"Lapjax Warning: when wrapping '{w}',",
-            f"got ImportError:\n    {e}\n" + \
-            "It won't affect unless you manually import this moudle.")
+      pass
+      # print(f"Lapjax Warning: when wrapping '{w}',",
+      #       f"got ImportError:\n    {e}\n" + \
+      #       "It won't affect unless you manually import this moudle.")
 del rig_files
 del _os
 

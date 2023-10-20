@@ -125,7 +125,7 @@ class LapTuple(object):
       self.spars = deepcopy(spars)
 
   def __repr__(self) -> str:
-    return str(self)
+    return 'LapTuple(\n  Value:\n{}\n  Grad:\n{}\n  Laplacian:\n{}\n)'.format(self.value.__repr__(), self.grad.__repr__(), self.lap.__repr__())
 
   def discard (self, op_axis: Set[int]) -> "LapTuple":
     os = self.grad.shape
