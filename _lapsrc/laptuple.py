@@ -281,6 +281,7 @@ class LapTuple(object):
     return (-self) + x
 
   def __mul__(self, x: Union[int, float, jnp.ndarray, 'LapTuple']) -> 'LapTuple':
+    if isinstance(x, LapTuple):
       return lap_mul(self, x)
     if isinstance(x, float) or isinstance(x, int):
       return LapTuple(self.value*x, self.grad*x, self.lap*x, self.spars)
@@ -364,7 +365,6 @@ def reciprocal_withL(input_x: LapTuple) -> LapTuple:
              2 * jnp.sum(x_nabla ** 2, axis=0) * (y**3)
   return LapTuple(y, y_nabla, y_nabla2, input_x.spars)
 
-
 def lap_mul(x: LapTuple, y: LapTuple) -> LapTuple:
   v = x.value * y.value
   assert x.spars.get_id() == y.spars.get_id()
@@ -375,4 +375,3 @@ def lap_mul(x: LapTuple, y: LapTuple) -> LapTuple:
   return LapTuple(v, g, l, spars)
 
 from lapjax.lapsrc import sparsutils as sutils
-
