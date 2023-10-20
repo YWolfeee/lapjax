@@ -102,10 +102,11 @@ class LapTuple(object):
         is_input (bool, optional): Whether value is the initial Input. 
           Defaults to False.
     """
-    self.value = value
+    self.value = deepcopy(value)
     self.shape = self.value.shape
     self.size = self.value.size
     self.ndim = len(self.shape)
+    self.dtype = self.value.dtype
 
     if is_input:
       assert grad is None and lap is None, \
@@ -130,9 +131,9 @@ class LapTuple(object):
       assert grad.shape[0] == spars.get_gdim(), \
         (f"`grad` and `spars` mismatch. Gradient dim is {grad.shape[0]}, "
         f"while `spars` has {spars.get_gdim()} gradient dim.")
-      self.grad = grad
-      self.lap = lap
-      self.spars = spars
+      self.grad = deepcopy(grad)
+      self.lap = deepcopy(lap)
+      self.spars = deepcopy(spars)
     else:
       assert grad is None and lap is None and spars is not None, \
         ("To construct LapTuple from input, set `is_input` to `True`.\n"
@@ -141,7 +142,7 @@ class LapTuple(object):
       self.grad = jnp.zeros((spars.get_gdim(), ) + value.shape, 
                             dtype=value.dtype)
       self.lap = jnp.zeros_like(value, dtype=value.dtype)
-      self.spars = spars
+      self.spars = deepcopy(spars)
 
   def __repr__(self) -> str:
     return str(self)
