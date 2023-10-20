@@ -14,6 +14,11 @@ from lapjax.lapsrc.sparsinfo import (
   InputInfo as InputInfo,
   SparsInfo as SparsInfo,
 )
+from lapjax.lapsrc.laputils import (
+  lap_counter as lap_counter,
+  laptupler as laptupler,
+)
+
 
 import os as _os
 rig_files = [w for w in _os.listdir(__path__[0]) if 
