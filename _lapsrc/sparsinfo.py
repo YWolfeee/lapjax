@@ -12,7 +12,7 @@ from lapjax.lapsrc.func_utils import lap_print
 class InputInfo (object):
   def __init__(self, size: int, id: int = None) -> None:
     if id is None:
-      self.id = int(time.time())
+      self.id = int(time.perf_counter_ns())
       lap_print("Specifying new inputs for forward laplacian computation ...\n",
             f"  Input ID: {self.id}, Length: {size}")
     else:
