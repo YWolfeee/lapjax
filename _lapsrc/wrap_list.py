@@ -33,7 +33,7 @@ wrap_func_dict = {
   jnp.square, jnp.sqrt, jnp.power,
   jnp.abs, jnp.absolute,
   jlax.sin, jlax.cos, jlax.tan,
-  jlax.asin, jlax.acos, jlax.atan, jlax.atan2,
+  jlax.asin, jlax.acos, jlax.atan,
   jlax.asinh, jlax.acosh, jlax.atanh, 
   jlax.exp, jlax.log,
   jlax.square, jlax.sqrt, jlax.rsqrt, 
