@@ -15,38 +15,22 @@ from lapjax.lapsrc.sparsinfo import (
   SparsInfo as SparsInfo,
 )
 
-import os as _os
-rig_files = [w for w in _os.listdir(__path__[0]) if 
-             w.endswith('.py') and w not in ['__init__.py', 'config.py']]
-for w in rig_files:
-    try:
-      exec(f'from lapjax import {w[:-3]} as {w[:-3]}')
-    except Exception as e:
-      pass
-      # print(f"Lapjax Warning: when wrapping '{w}',",
-      #       f"got ImportError:\n    {e}\n" + \
-      #       "It won't affect unless you manually import this moudle.")
-del rig_files
-del _os
-
 ### Over-write module entrance to lapjax ###
-from lapjax import _src as _src
-from lapjax import abstract_arrays as abstract_arrays
-from lapjax import api_util as api_util
-from lapjax import distributed as distributed
-from lapjax import debug as debug
-from lapjax import dtypes as dtypes
-from lapjax import errors as errors
-from lapjax import image as image
-from lapjax import lax as lax
-from lapjax import nn as nn
-from lapjax import numpy as numpy
-from lapjax import ops as ops
-from lapjax import profiler as profiler
-from lapjax import random as random
-from lapjax import stages as stages
-from lapjax import tree_util as tree_util
-from lapjax import util as util
+import os as _os
+ignored = ['__pycache__']
+submodules = [w for w in _os.listdir(__path__[0]) if 
+              _os.path.isdir(__path__[0]+'/'+w) and w not in ignored
+              or w.endswith('.py') and w not in ['__init__.py', 'config.py']]
+for w in submodules:
+    name = w[:-3] if w.endswith('.py') else w
+    try:
+      exec(f'from lapjax import {name} as {name}')
+    except Exception as e:
+      print(f"Lapjax Warning: when wrapping '{w}',",
+            f"got ImportError:\n    {e}\n" + \
+             "This won't affect functions of other modules.")
+del submodules
+del _os
 
 import sys, importlib
 from lapjax.lapsrc.wrapper import _wrap_module

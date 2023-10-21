@@ -3,11 +3,30 @@
 LapJAX is a package built upon Google JAX. The purpose of this package is to compute the laplacian automatically using a technique budded "Forward Laplacian". The mathematical introduction can be founded [here](#forward-laplacian-introduction).
 
 
+### Installation
+To install LapJAX together with all the dependencies (excluding JAX), go to the downloaded directory and run
+
+```shell
+pip install .
+```
+
+Currently we do not support -e option (editable installation). If you have a GPU available, then you can
+install JAX with CUDA support, using e.g.:
+
+```shell
+pip3 install --upgrade jax[cuda]==0.3.24 -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+```
+
+Note that the jaxlib version must correspond to the existing CUDA installation
+you wish to use. Please see the
+[JAX documentation](https://github.com/google/jax#installation) for more
+details.
+
 ### Usage
 Assume you have written a function `f(x)` using jax, and you want to compute
   the laplacian of `f(x)` w.r.t. `x`.
 To use lapjax, take the following steps:
-1. Replace `jax` with `lapjax`, e.g.
+1. Replace `jax` with `lapjax`, e.g.,
 ```python
 # import jax.numpy as jnp
 # from jax import vmap
@@ -17,6 +36,12 @@ from lapjax import vmap
 def f(x):
   # Your code here.
   pass
+```
+or use a sys.modules replacement trick (not recommended):
+```python
+import lapjax
+import sys
+sys.modules['jax'] = lapjax
 ```
 2. Creat a LapTuple from the input, pass it to the function directly, and obtain the laplacian, e.g.
 ```python

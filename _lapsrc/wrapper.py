@@ -12,37 +12,44 @@ def _lapwrapper (wrapped_f: F) -> F:
   from lapjax.lapsrc.laputils import iter_func, lap_counter, lap_checker, tupler
   
   @wraps(wrapped_f)
-  def entrance (*args, **kwargs):
+  def entrance(*args, **kwargs):
     lap_num = lap_counter(args) + lap_counter(kwargs)
-    if lap_num == 0: # No laptuple iterupts. Directly return.
+    if lap_num == 0:  # No laptuple iterupts. Directly return.
       return wrapped_f(*args, **kwargs)
 
     if not is_wrapped(wrapped_f):
       raise NotImplementedError(
-        f"Lapjax encounters unwrapped function '{wrapped_f.__name__}'.\n" + \
-         "Please consider using other functions or wrap it yourself.\n" + \
-         "You can refer to README for more information about customized wrap."
-        )
+        f"Lapjax encounters unwrapped function '{wrapped_f.__name__}'.\n" +
+        "Please consider using other functions or wrap it yourself.\n" +
+        "You can refer to README for more information about customized wrap."
+      )
 
     # Pass wrapped_f and LapTuple indicator to dispatcher.
-    tuplized_f = lap_dispatcher(wrapped_f, 
+    tuplized_f = lap_dispatcher(wrapped_f,
                                 lap_checker(args),
                                 lap_checker(kwargs))
 
     # Compute the value with tuplized arguments.
-    return tuplized_f(*iter_func(args, tupler), 
+    return tuplized_f(*iter_func(args, tupler),
                       **iter_func(kwargs, tupler))
-  
+
   entrance.__hash__ = wrapped_f.__hash__  # used as main key in wrap classes
   return entrance
 
-def _wrap_module (module, new_module):
+
+def _wrap_module(module, new_module):
+  import jax.numpy as jnp
+  from lapjax.lapsrc.laptuple import LapTuple
+  mem_funcs = [jnp.mean, jnp.sum, jnp.min, jnp.max]
   alls = [w for w in dir(module) if not w.startswith('_')]
   for name in alls:
     if hasattr(new_module, name):
       continue
     val = getattr(module, name)
     if callable(val) and not isclass(val):
-      setattr(new_module, name, _lapwrapper(val))
+      wrapped_func = _lapwrapper(val)
+      setattr(new_module, name, wrapped_func)
+      if val in mem_funcs:
+        setattr(LapTuple, name, wrapped_func)
     else:
       setattr(new_module, name, val)
