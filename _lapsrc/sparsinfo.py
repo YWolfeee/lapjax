@@ -118,15 +118,7 @@ class SparsTuple(object):
     
 
 class SparsInfo (object):
-  """List of Tuples. 
-  Each tuple represent a gradient sparsity allocation.
-  All tuples correspond to a single InputInfo.
-
-  #### Input info
-    A InputInfo indicating which input these tuples are pointing.
-
-
-  TODO: add operations on SparsTuple.
+  """The sparsity information for `LapTuple`. 
   """
 
   def __init__(self, 
@@ -136,7 +128,27 @@ class SparsInfo (object):
                is_input = False,
                ndim = 1,
                ) -> None:
-    """TODO: add documentation.
+    """Initialize the sparsity information. Record the input array information,
+    as well as the sparsity that the LapTuple has.
+    
+    Args:
+        inputinfo (InputInfo): The input information. Only LapTuple with identical InputInfo can be operated together. To get an InputInfo, use `a.spars.input` where `a` is the input LapTuple (the one you compute gradient w.r.t.).
+
+        tups (Sequence[SparsTuple], optional): The sparsity tuple that records how sparse the gradient is. Right now it is an unitary tuple, but in the future we may support multiple tuples. Defaults to None. Each tuple is a SparsTuple object, specifying the sparsity of part of the gradient (right now the entire gradient matrix). `SparsInfo` contains three major information: 
+          - `irange`: The range of input that this sparsity depends on.
+          - `grange`: The range of gradient that this sparsity specifies. In the most cases it should be `(0, input.size)`, but when you apply functions like `jnp.split`, it will be different. 
+          - `splits`: The splits of the dependency of the input across axes. The splits are specified in the order of the gradient dimension, where negative value means the gradient dimension, and positive value means the input dimension. For example, if `splits = (0, -4)`, then we have
+          
+          ```
+          grad.shape[0] == 4 # grad.shape[0] is the product of all negative values.
+          input.size == value.shape[0] * grad.shape[0]. # input size is the product of positive values times grad.shape[0].
+          ```
+          This splits mean that the value matrix depends on the input in a sparse way: for each `idx`, `value[idx]` depends only on `input[idx*4:(idx+1)*4]`. For more details, please refer to our paper.
+        
+        is_input (bool, optional): Whether this sparsity is about the input. Defaults to False. This is used to automatically generate the InputInfo for the input LapTuple.
+
+        ndim (int, optional): The dimension of the input. Defaults to 1.
+    
     """
     self.input = inputinfo
     if is_input:  # This sparsinfo is about the initial input.
