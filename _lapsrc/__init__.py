@@ -14,49 +14,23 @@ from lapjax.lapsrc.sparsinfo import (
   InputInfo as InputInfo,
   SparsInfo as SparsInfo,
 )
-from lapjax.lapsrc.laputils import (
-  lap_counter as lap_counter,
-  laptupler as laptupler,
-)
 
-
+### Over-write module entrance to lapjax ###
 import os as _os
-rig_files = [w for w in _os.listdir(__path__[0]) if 
-             w.endswith('.py') and w not in ['__init__.py', 'config.py']]
-for w in rig_files:
+ignored = ['__pycache__']
+submodules = [w for w in _os.listdir(__path__[0]) if 
+              _os.path.isdir(__path__[0]+'/'+w) and w not in ignored
+              or w.endswith('.py') and w not in ['__init__.py', 'config.py']]
+for w in submodules:
+    name = w[:-3] if w.endswith('.py') else w
     try:
-      exec(f'from lapjax import {w[:-3]} as {w[:-3]}')
+      exec(f'from lapjax import {name} as {name}')
     except Exception as e:
       print(f"Lapjax Warning: when wrapping '{w}',",
             f"got ImportError:\n    {e}\n" + \
-            "This won't affect functions of other modules.")
-del rig_files
+             "This won't affect functions of other modules.")
+del submodules
 del _os
-
-### Over-write module entrance to lapjax ###
-from lapjax import _src as _src
-from lapjax import abstract_arrays as abstract_arrays
-from lapjax import api_util as api_util
-from lapjax import distributed as distributed
-from lapjax import debug as debug
-from lapjax import dtypes as dtypes
-from lapjax import errors as errors
-from lapjax import image as image
-from lapjax import lax as lax
-from lapjax import nn as nn
-from lapjax import numpy as numpy
-from lapjax import ops as ops
-from lapjax import profiler as profiler
-from lapjax import random as random
-from lapjax import stages as stages
-from lapjax import tree_util as tree_util
-from lapjax import util as util
-from lapjax import scipy as scipy
-from lapjax import sharding as sharding
-from lapjax import dlpack as dlpack
-from lapjax import flatten_util as flatten_util
-from lapjax import example_libraries as example_libraries
-from lapjax import experimental as experimental
 
 import sys, importlib
 from lapjax.lapsrc.wrapper import _wrap_module

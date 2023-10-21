@@ -1,6 +1,5 @@
 from inspect import isclass
 from functools import wraps
-from lapjax.lapsrc.laptuple import LapTuple
 from lapjax.lapsrc.functions import F, FType, lap_dispatcher, is_wrapped
 
 def _lapwrapper (wrapped_f: F) -> F:
@@ -40,6 +39,7 @@ def _lapwrapper (wrapped_f: F) -> F:
 
 def _wrap_module(module, new_module):
   import jax.numpy as jnp
+  from lapjax.lapsrc.laptuple import LapTuple
   mem_funcs = [jnp.mean, jnp.sum, jnp.min, jnp.max]
   alls = [w for w in dir(module) if not w.startswith('_')]
   for name in alls:
