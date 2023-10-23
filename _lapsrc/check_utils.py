@@ -78,18 +78,18 @@ def create_check_function(test_func, derivative_args=0, derivative_outputs=0, in
   all the arguments correspond to Autodiff variable, i.e., can be replaced by LapTuple, should be specified 
   through POSITIONAL arguments.
   Inputs:
-      derivative_args: An unsigned int or a tuple of unsigned ints, denotes the argnum used in the derivative 
-          calcalution, i.e., should be replaced by LapTuple in LapJAX.
-      derivative_output: An unsigned int or a tuple of unsigned ints denotes which arguments should be considered 
-          as a LapTuple in the output. 
-      input_dim: Unsigned int. The testing input dimension in this function.
-      seed: Unsigned int. Random seed
-      return_all: If this term is setted as True, the checking function will return grad_in_hessian, 
-          grad_in_lapjax, lap_in_hessian, lap_in_lapjax; As for the False, it will return the difference
-          between hessian and lapjax methods.
+    derivative_args: An unsigned int or a tuple of unsigned ints, denotes the argnum used in the derivative 
+      calcalution, i.e., should be replaced by LapTuple in LapJAX.
+    derivative_output: An unsigned int or a tuple of unsigned ints denotes which arguments should be considered 
+      as a LapTuple in the output. 
+    input_dim: Unsigned int. The testing input dimension in this function.
+    seed: Unsigned int. Random seed
+    return_all: If this term is setted as True, the checking function will return grad_in_hessian, 
+      grad_in_lapjax, lap_in_hessian, lap_in_lapjax; As for the False, it will return the difference
+      between hessian and lapjax methods.
   Outputs:
-      checking_function. The input of this function should be same as the original function. It outputs 
-          the difference between LAPJAX and Hessian method in calculating the Laplacian and Gradient.
+    checking_function. The input of this function should be same as the original function. It outputs 
+      the difference between LAPJAX and Hessian method in calculating the Laplacian and Gradient.
   '''
   if isinstance(derivative_args, int):
     derivative_args = (derivative_args, )
