@@ -14,6 +14,7 @@ from lapjax.lapsrc.sparsinfo import (
   InputInfo as InputInfo,
   SparsInfo as SparsInfo,
 )
+from lapjax.lapsrc.check_utils import create_check_function
 
 ### Over-write module entrance to lapjax ###
 import os as _os
