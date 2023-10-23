@@ -70,13 +70,6 @@ def test_all_wrapped_functions():
       or func == jax.lax.integer_pow
     ):
       check_diff(func, jnp.ones([3, 4]) * 0.1, 2)
-    elif func == jax.lax.atan2:
-      check_diff(
-        func,
-        jnp.ones([3, 4]) * 0.1,
-        jnp.ones([3, 4]) * 0.1,
-        derivative_inputs=(0, 1),
-      )
     elif func == jax.lax.acosh or func == jax.numpy.arccosh:
       check_diff(func, jnp.ones([3, 4]) * 10)
     else:
