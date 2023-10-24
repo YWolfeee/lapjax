@@ -1,37 +1,77 @@
+import enum
 from functools import partial
 from copy import deepcopy
+from typing import Tuple
 
 import jax
 from jax import vmap
 from jax import numpy as jnp
+from jax import lax as jlax
 
-from lapjax.func_utils import lap_print, get_name, vgd_f
-from lapjax.axis_utils import get_op_axis
-from lapjax.laptuple import LapTuple, TupType
-from lapjax.laputils import (
-  iter_func, lap_setter, 
-  check_single_args, check_pure_kwargs,
+from lapjax.lapsrc.lapconfig import lapconfig
+from lapjax.lapsrc.func_utils import get_name, get_hash, vgd_f, F
+from lapjax.lapsrc.axis_utils import get_op_axis
+from lapjax.lapsrc.laptuple import LapTuple, TupType
+from lapjax.lapsrc.laputils import (
+  iter_func, lap_setter, lap_counter, lap_extractor,
+  check_single_args, check_pure_kwargs, check_lapcount_args,
 )
-from lapjax.sparsutils import (
+from lapjax.lapsrc.sparsutils import (
   get_axis_map, 
   shortcut_for_discard, broadcast_spars, 
   matrix_spars, sum_matrix_grad, 
   concat_sparsity,
 )
 
+
+class FType(enum.Enum):
+    EMPTY = 0
+    CONSTRUCTION = 1
+    LINEAR = 2
+    ELEMENT = 3
+    MERGING = 4
+    OVERLOAD = 5
+    CUSTOMIZED = 6
+
 class FBase(object):
   support_type = [type(jnp.sum), type(jnp.tanh)]
   funclist = []
+  hashlist = []
   classname = "Base"
+  ftype = FType.EMPTY
 
   def __init__(self) -> None:
+    from lapjax.lapsrc.wrap_list import wrap_func_dict
+    self.funclist = wrap_func_dict[self.ftype]
+    from inspect import isclass
     for w in self.funclist:  # Can only add function type inside
-      assert type(w) in self.support_type, \
-      f"{w.__name__} has type {type(w)}, but only support {self.support_type}!"
-    self.namelist = get_name(self.funclist)
+      assert callable(w) and not isclass(w), \
+      f"Function[{w.__name__}] has is either not callable or is a class, " + \
+      f"which should not be wrapped by Lapjax."
+    self.updated()
 
-  def contain(self, name):
-    return name in self.namelist
+  def updated(self) -> None:
+    self.namelist = get_name(self.funclist)
+    self.hashlist = [w.__hash__() for w in self.funclist]
+
+  def contain(self, f: F):
+    return f in self.funclist
+  
+  def examine(self, f: F, *args, **kwargs):
+    """Test whether the function satisfies corresponding properties."""
+    pass
+
+  def execute(self, f: F, *args, **kwargs):
+    """Execute the function with LapTuple input."""
+    pass
+
+  def add_wrap(self, f: F, cst_f: F = None):
+    self.funclist.append(f)
+    self.updated()
+
+  def remove_wrap(self, f: F):
+    self.funclist.remove(f)
+    self.updated()
 
   def __str__(self) -> str:
     return self.classname + ": " + str(self.namelist)
@@ -39,37 +79,39 @@ class FBase(object):
 
 class FLinear(FBase):
   classname = "Linear"
-  funclist = [
-    jnp.reshape, jnp.transpose, jnp.swapaxes,
-    jnp.split, jnp.array_split, jnp.concatenate,
-    jnp.squeeze, jnp.expand_dims,
-    jnp.repeat, jnp.tile,
-    jnp.where, jnp.triu, jnp.tril,
-    jnp.sum, jnp.mean, #jnp.einsum, # einsum removed.
-  ]
+  ftype = FType.LINEAR
 
   def __init__(self) -> None:
     super(FLinear, self).__init__()
 
-  def _linear(self, f, *args, **kwargs):
-    fname = f.__name__
+  def examine(self, f: F, *args, **kwargs):
+    # Same function applied seperately to VALUE, GRAD, LAP
+    # For linear functions, keyword arguments should not be laptuple
+    # Can have multiple LapTuple, e.g. jnp.concatenate
+    fname = get_name(f)
+    check_pure_kwargs(fname, kwargs)
+
+  def execute(self, f, *args, **kwargs):
+    fname = get_name(f)
     pf = partial(f, **kwargs)
 
     # shortcut for mean and sum
-    if fname in get_name([jnp.sum, jnp.mean]):
-      lap_print(f"|-->`{fname}` tries to operate on dense axes first.")
+    if get_hash(f) in get_hash([jnp.sum, jnp.mean]):
+      lapconfig.log(f"|-->`{fname}` tries to operate on dense axes first.")
   
       out =  shortcut_for_discard(f, *args, **kwargs)
       if out is not None: # otherwise, continue the execution
-        lap_print(f"|--<`{fname}` shortcut succeeds.")
+        lapconfig.log(f"|--<`{fname}` shortcut succeeds.")
         return out
-      lap_print(f"|--<`{fname}` shortcut fails, will behave normally.")
+      lapconfig.log(f"|--<`{fname}` shortcut fails, will behave normally.")
 
     # Ensure that the call is normal.
     # Standard bug will be raised here.
     val_out = pf(*iter_func(args))    
 
-    if fname == get_name(jnp.concatenate):
+    # Below we compute the *spars* and extracted *l_args*, 
+    # according to the function type.
+    if get_hash(f) == get_hash(jnp.concatenate):
       check_single_args(fname, args)
       op_axis = kwargs.get("axis", 0)
       
@@ -84,12 +126,48 @@ class FLinear(FBase):
         # grads are properly discarded upon return.
         arrays, spars = concat_sparsity(args[0], op_axis)
         l_args = (arrays, )
+      lapconfig.log(f"    Discard sparsity to {spars.tups}.")
 
-      lap_print(f"    Discard sparsity to {spars.tups}.")
-    else: 
+    elif get_hash(f) == get_hash(jnp.where):
+      out_sh = val_out.shape
+      cnd, x, y = args
+      cnd = cnd.value if isinstance(cnd, LapTuple) else cnd
+      if lap_counter([x, y]) == 0:
+        return val_out  # only condition is LapTuple, return ndarray
+      elif lap_counter([x, y]) == 1:
+        spars = x.spars if isinstance(x, LapTuple) else y.spars
+        if isinstance(x, LapTuple):
+          newg = spars.broadcast_dim(out_sh, x.grad)
+          x = LapTuple(x.value, newg, x.lap, spars)
+          y = LapTuple(jnp.broadcast_to(y, out_sh), spars=spars)
+        else:
+          newg = spars.broadcast_dim(out_sh, y.grad)
+          x = LapTuple(jnp.broadcast_to(x, out_sh), spars=spars)
+          y = LapTuple(y.value, newg, y.lap, spars)
+        l_args = (cnd, x, y)
+
+      else:
+        assert isinstance(x, LapTuple) and isinstance(y, LapTuple)
+        assert x.spars.get_id() == x.spars.get_id(), \
+          f"Cannot apply where to LapTuples w.r.t. different inputs."
+        from lapjax import numpy as my_jnp
+        x = my_jnp.broadcast_to(x, out_sh)
+        y = my_jnp.broadcast_to(y, out_sh)
+        spars, gs = broadcast_spars([x.spars, y.spars], [x.grad, y.grad])
+        l_args = (cnd,) + tuple(LapTuple(w.value, g, w.lap, spars) 
+                                for w,g in zip([x,y], gs))
+
+    elif get_hash(f) == get_hash(jnp.broadcast_to):
+      array = deepcopy(args[0])
+      assert isinstance(array, LapTuple)
+      shape = args[1] if len(args) == 2 else kwargs.get("shape")
+      array.spars.broadcast_dim(shape, array.grad)
+      spars, l_args = array.spars, args
+
+    else: # only one LapTuple, i.e. args[0]
       array: LapTuple = args[0]
-      ax_map = get_axis_map(fname, *args, **kwargs)
-      if fname in get_name([jnp.split, jnp.array_split]):
+      ax_map = get_axis_map(f, *args, **kwargs)
+      if get_hash(f) in get_hash([jnp.split, jnp.array_split]):
         split_axis = [k for k,v in ax_map.items() if v is None][0]
         if array.spars.check_leading_axis(split_axis):
           # array remains unchanged.
@@ -121,35 +199,30 @@ class FLinear(FBase):
 
 class FConstruction(FBase):
   classname = "Construction"
-  funclist = [
-    jnp.eye, jnp.array,
-    jnp.ones, jnp.ones_like,
-    jnp.zeros, jnp.zeros_like,
-    jnp.asarray, jnp.sign,
-    jax.lax.stop_gradient,
-  ]
+  ftype = FType.CONSTRUCTION
 
   def __init__(self) -> None:
     super(FConstruction,self).__init__()
 
+  def execute(self, f: F, *args, **kwargs):
+    return f(*iter_func(args), **iter_func(kwargs))
+
 
 class FElement(FBase):
   classname = "Element-wise"
-  funclist = [
-    jnp.sin, jnp.cos, jnp.tan,
-    jnp.arcsin, jnp.arccos, jnp.arctan,
-    jnp.arcsinh, jnp.arccosh, jnp.arctanh,
-    jnp.sinh, jnp.cosh, jnp.tanh,
-    jnp.exp, jnp.log,
-    jnp.square, jnp.sqrt, jnp.power,
-    jnp.abs, jnp.absolute,
-    jax.lax.rsqrt,
-  ]
+  ftype = FType.ELEMENT
 
   def __init__(self) -> None:
     super(FElement,self).__init__()
 
-  def _element(self, _f, *args, **kwargs):
+  def examine(self, f: F, *args, **kwargs):
+    # laptuple should not appear in kwargs. In FElement, args are at most one-layer tuple.
+    # Only the first element SHOULD BE the laptuple
+    fname = get_name(f)
+    check_pure_kwargs(fname, kwargs)
+    check_lapcount_args(fname, args)
+
+  def execute(self, _f, *args, **kwargs):
     def p_f (x):
       cargs = (x,)+args[1:]
       return _f(*cargs, **kwargs)
@@ -165,14 +238,20 @@ class FElement(FBase):
 
 class FOverload(FBase):
   classname = "Overload"
-  funclist = [
-    jnp.add, jnp.subtract, jnp.multiply, jnp.divide, jnp.true_divide
-  ]
+  ftype = FType.OVERLOAD
 
   def __init__(self) -> None:
     super(FOverload, self).__init__()
 
-  def _overload_f (self, fname, x1, x2):
+  def examine(self, f: F, *args, **kwargs):
+    # There wouldn't be kwrags, and len(args)==2.
+    fname = get_name(f)
+    assert len(args) == 2 and len(kwargs) == 0, \
+      f"Arguments mismatch. Require binary arguments, but len(args) = {len(args)} and len(kwargs) = {len(kwargs)}."
+
+  def execute (self, fname, *args, **kwargs):
+    del kwargs
+    x1, x2 = args
     if fname == "add":
       return x1 + x2
     elif fname == "subtract":
@@ -185,15 +264,18 @@ class FOverload(FBase):
 
 class FMerging(FBase):
   classname = "Merging"
-  funclist = [
-    jnp.linalg.norm, jnp.prod,
-  ]
+  ftype = FType.MERGING
 
   def __init__(self) -> None:
     super(FMerging, self).__init__()
 
-  def _merging (self, f, *args, **kwargs):
-    fname = f.__name__
+  def examine(self, f: F, *args, **kwargs):
+    fname = get_name(f)
+    check_single_args(fname, args)
+    check_pure_kwargs(fname, kwargs)
+
+  def execute (self, f, *args, **kwargs):
+    fname = get_name(f)
     """
     These functions always operate along some axes.
     We vmap the rest axises, such that the function outputs a scalar,
@@ -211,11 +293,11 @@ class FMerging(FBase):
     op_axis, p_args, p_kwargs = get_op_axis(*_args, **_kwargs)
 
     # short-cut
-    if fname == get_name(jnp.linalg.norm):
+    if get_hash(f) == get_hash(jnp.linalg.norm):
       from lapjax import numpy as my_jnp
       if p_kwargs.get("ord") in [None, 'fro'] or \
         (p_kwargs.get("ord") == 2 and len(op_axis) == 1):
-        lap_print("----Calling sqrt-sum-square sequence as shortcut of 'norm'.")
+        lapconfig.log("----Calling sqrt-sum-square sequence as shortcut of 'norm'.")
         new_args = (my_jnp.square(args[0]), ) + args[1:]
         kwargs.pop('ord', None)
         return my_jnp.sqrt(my_jnp.sum(*new_args, **kwargs))
@@ -245,33 +327,36 @@ class FMerging(FBase):
 
 class FCustomized(FBase):
   classname = "Customized"
-  funclist = [
-    jnp.matmul, jnp.dot,
-    jnp.max, jnp.min,
-    jnp.amax, jnp.amin,
-    jnp.linalg.slogdet,
-    jax.nn.logsumexp,
-    jax.nn.softmax
-  ]
+  ftype = FType.CUSTOMIZED
+
+  custom_dict = {}  # user defined function
 
   def __init__(self) -> None:
     super(FCustomized, self).__init__()
 
-  def _customized(self, f, *args, **kwargs):
-    fname = f.__name__
-    if fname in get_name([jnp.max, jnp.min, jnp.amax, jnp.amin,]):
+  def add_wrap(self, f: F, cst_f: F):
+    super().add_wrap(f, cst_f)
+    self.custom_dict[f.__hash__()] = cst_f  # call cst_f when f is called
+
+  def remove_wrap(self, f: F):
+    super().remove_wrap(f)
+    self.custom_dict.pop(f.__hash__())
+
+  def execute(self, f, *args, **kwargs):
+    fname = get_name(f)
+    if get_hash(f) in get_hash([jnp.max, jnp.min, jnp.amax, jnp.amin,]):
       # Consider shortcut first:
-      lap_print(f"|-->`{fname}` tries to operate on dense axes first.")
+      lapconfig.log(f"|-->`{fname}` tries to operate on dense axes first.")
       out =  shortcut_for_discard(f, *args, **kwargs)
       if out is not None: # otherwise, continue the execution
-        lap_print(f"|--<`{fname}` shortcut succeeds.")
+        lapconfig.log(f"|--<`{fname}` shortcut succeeds.")
         return out
-      lap_print(f"|--<`{fname}` shortcut fails, will behave normally.")
+      lapconfig.log(f"|--<`{fname}` shortcut fails, will behave normally.")
 
     # Behave according to the function.
-    if fname in ["matmul", "dot"]:
-      f, r_args = partial(f, **kwargs), args
-      f.__name__ = fname
+    if get_hash(f) in get_hash([jnp.matmul, jnp.dot]):
+      _f, r_args = partial(f, **kwargs), args
+      _f.__hash__ = f.__hash__ # ensure the hash is the same
 
       try:
         x1, x2 = r_args
@@ -279,40 +364,40 @@ class FCustomized(FBase):
         raise IndexError(f"{fname} requires 2 array arguments, but got {len(r_args)}.")
       # f takes r_args as inputs, where each argument is a ndarray or laptuple
 
-      if x1.ndim == 0 or x2.ndim == 0 and fname == get_name(jnp.dot):
+      if x1.ndim == 0 or x2.ndim == 0 and get_hash(f) == get_hash(jnp.dot):
         # handle valid scalar inputs
         return x1 * x2
 
-      value = f(*iter_func(r_args))
+      value = _f(*iter_func(r_args))
       if isinstance(x1, LapTuple) and isinstance(x2, LapTuple):
         assert x1.spars.get_id() == x2.spars.get_id()
         v1, g1, l1 = x1.to_tuple()
         v2, g2, l2 = x2.to_tuple()
         
         # grad = vf1(g1, v2) + vf2(v1, g2)
-        s1, vg1 = matrix_spars(0, x1.spars, f, g1, v2)
-        s2, vg2 = matrix_spars(1, x2.spars, f, v1, g2)
+        s1, vg1 = matrix_spars(0, x1.spars, _f, g1, v2)
+        s2, vg2 = matrix_spars(1, x2.spars, _f, v1, g2)
         spars, lg = broadcast_spars([s1, s2], [vg1, vg2])
         grad = lg[0] + lg[1]
 
-        cross_lap = sum_matrix_grad(f, [x1.spars, x2.spars], [g1, g2])
+        cross_lap = sum_matrix_grad(_f, [x1.spars, x2.spars], [g1, g2])
         if cross_lap is None:
           g1 = x1.spars.set_dense(g1, True)
           g2 = x2.spars.set_dense(g2, True)
-          cross_lap = jnp.sum(vmap(f)(g1, g2), axis=0)
-        lap = f(v1, l2) + f(l1, v2) + 2 * cross_lap
+          cross_lap = jnp.sum(vmap(_f)(g1, g2), axis=0)
+        lap = _f(v1, l2) + _f(l1, v2) + 2 * cross_lap
       else:  # only one of them is laptup
-        lap = f(*iter_func(r_args, opargs=(TupType.LAP,)))
+        lap = _f(*iter_func(r_args, opargs=(TupType.LAP,)))
 
         if isinstance(x1, LapTuple):
           spars, lap_idx, g1, g2 = x1.spars, 0, x1.grad, x2
         elif isinstance(x2, LapTuple):
           spars, lap_idx, g1, g2 = x2.spars, 1, x1, x2.grad
-        spars, grad = matrix_spars (lap_idx, spars, f, g1, g2)
+        spars, grad = matrix_spars (lap_idx, spars, _f, g1, g2)
         
       return LapTuple(value, grad, lap, spars)
 
-    elif fname in get_name([jnp.max, jnp.amax, jnp.min, jnp.amin]):
+    elif get_hash(f) in get_hash([jnp.max, jnp.amax, jnp.min, jnp.amin]):
       # To accurately return the GRAD and LAP arrays, we use mask.
       # Keep array dim and mask the maximum, and then index by the mask.
       # Notice that keepdims argument should not be pass to args.
@@ -323,7 +408,7 @@ class FCustomized(FBase):
 
       # get LapTuple and discard grad if required.
       array: LapTuple = args[0].map_axis(
-          get_axis_map(fname, *args, **kwargs))
+          get_axis_map(f, *args, **kwargs))
 
       # can have multiple True
       mask = array.get(TupType.VALUE) == f(*p_args, **p_kwargs)
@@ -339,12 +424,12 @@ class FCustomized(FBase):
                       index_arr(array.get(TupType.LAP)),
                       array.spars
                       )
-    elif fname == get_name(jnp.linalg.slogdet):
+    elif get_hash(f) == get_hash(jnp.linalg.slogdet):
       det = f(*iter_func(args), **iter_func(kwargs))
 
       # get LapTuple and discard grad if required.
       array: LapTuple = args[0].map_axis(
-          get_axis_map(fname, *args, **kwargs))
+          get_axis_map(f, *args, **kwargs))
 
       valx, gradx, lapx = array.to_tuple()
       inv = jnp.linalg.inv(valx)
@@ -363,13 +448,13 @@ class FCustomized(FBase):
 
       return det[0], LapTuple(det[1], r_grad, lap, array.spars)
 
-    elif fname == get_name(jax.nn.logsumexp):
+    elif get_hash(f) == get_hash(jax.nn.logsumexp):
       check_pure_kwargs(fname, kwargs)
       check_single_args(fname, args)
 
       # get LapTuple and discard grad if required.
       array: LapTuple = args[0].map_axis(
-          get_axis_map(fname, *args, **kwargs))
+          get_axis_map(f, *args, **kwargs))
 
       v, g, l = array.to_tuple()
       # ensure non-negative
@@ -403,7 +488,7 @@ class FCustomized(FBase):
       else:
         return LapTuple(value, grad, lap, array.spars)
 
-    elif fname == get_name(jax.nn.softmax):
+    elif get_hash(f) == get_hash(jax.nn.softmax):
       check_single_args(fname, args)
       check_pure_kwargs(fname, kwargs)
       kwargs['keepdims'] = True
@@ -412,15 +497,18 @@ class FCustomized(FBase):
 
       # get LapTuple and discard grad if required.
       array: LapTuple = args[0].map_axis(
-          get_axis_map(fname, *args, **kwargs))
+          get_axis_map(f, *args, **kwargs))
       p_args = (array,) + args[1:]
       x_max = my_jnp.max(*p_args, **kwargs)
 
-      from lapjax.lax import stop_gradient
+      from lapjax import lax
       # TODO: postpone the discard of array when calling substract.
-      unnormalized = my_jnp.exp(array - stop_gradient(x_max))
+      unnormalized = my_jnp.exp(array - lax.stop_gradient(x_max))
       r_args = (unnormalized,) + args[1:]
       return unnormalized / my_jnp.sum(*r_args, **kwargs)
+    
+    elif get_hash(f) in self.custom_dict.keys():  # user defined function
+      return self.custom_dict[get_hash(f)](*args, **kwargs)
 
 fconstruction = FConstruction()
 flinear = FLinear()
@@ -428,3 +516,4 @@ felement = FElement()
 foverload = FOverload()
 fmerging = FMerging()
 fcustomized = FCustomized()
+func_type: Tuple[FBase] = (fconstruction, flinear, felement, foverload, fmerging, fcustomized)

@@ -6,15 +6,16 @@ import jax
 import jax.numpy as jnp
 from jax._src.api_util import _ensure_index_tuple
 from jax._src.numpy.lax_numpy import _Indexer
-from lapjax.axis_utils import (
+from lapjax.lapsrc.axis_utils import (
   AX_MAP, SHAPE, S_AXES, 
   map_axis_from_shape, reduce_axis,
 )  
-from lapjax.func_utils import lap_print, get_name
-from lapjax.axis_utils import mod_axis, get_op_axis, merge_neg
-from lapjax.laptuple import LapTuple
-from lapjax.laputils import check_single_args
-from lapjax.sparsinfo import SparsInfo, InputInfo, SparsTuple
+from lapjax.lapsrc.lapconfig import lapconfig
+from lapjax.lapsrc.func_utils import get_name, get_hash, F
+from lapjax.lapsrc.axis_utils import mod_axis, get_op_axis, merge_neg
+from lapjax.lapsrc.laptuple import LapTuple
+from lapjax.lapsrc.laputils import check_single_args
+from lapjax.lapsrc.sparsinfo import SparsInfo, InputInfo, SparsTuple
 
 def tuple2spars(flat_tups: Tuple[Tuple[int]]) -> SparsInfo:
   """Given a tuplized SparsInfo, return corresponding SparsInfo.
@@ -109,16 +110,16 @@ def _split_map(ary: LapTuple, indices_or_sections, axis: int = 0) -> AX_MAP:
   ax_map = {w:w if w != axis else None for w in range(ary.ndim)}
   return ax_map
 
-def _get_matrixdot_axis_map (fname, n1, n2) -> Tuple[AX_MAP, AX_MAP]:
+def _get_matrixdot_axis_map (f, n1, n2) -> Tuple[AX_MAP, AX_MAP]:
   mg_axis = (n1-1, max(0, n2-2))
   # Obtain the axis mapping before and after applying f
-  if fname == get_name(jnp.matmul):
+  if get_hash(f) == get_hash(jnp.matmul):
     pre_dim = max(n2 - n1, 0)
     ax_map1 = {w: w+ pre_dim for w in range(n1-1)}
     pre_dim = max(n1 - n2, 0)
     ax_map2 = {w: w+ pre_dim for w in range(n2)}
 
-  elif fname == get_name(jnp.dot):
+  elif get_hash(f) == get_hash(jnp.dot):
     ax_map1 = {w:w for w in range(n1-1)}  
     ax_map2 = {w: w + n1 - 1 for w in range(n2)}
     ax_map2[n2-1] -= 1  # after the merged axis
@@ -128,7 +129,7 @@ def _get_matrixdot_axis_map (fname, n1, n2) -> Tuple[AX_MAP, AX_MAP]:
   
   return ax_map1, ax_map2
 
-def get_axis_map (fname, *args, **kwargs) -> AX_MAP:
+def get_axis_map (f: F, *args, **kwargs) -> AX_MAP:
   """Obtain the axis mapping for Merging functions and 
     Linear functions (except split, concatenate, and reshape).
 
@@ -157,7 +158,9 @@ def get_axis_map (fname, *args, **kwargs) -> AX_MAP:
   ```
 
   """
-  if fname in get_name([
+  from lapjax.lapsrc.function_class import flinear
+  fname = get_name(f)
+  if get_hash(f) in get_hash([
     # Linear functions
     jnp.sum, jnp.mean,  
     jnp.repeat,
@@ -172,46 +175,52 @@ def get_axis_map (fname, *args, **kwargs) -> AX_MAP:
     axis = get_op_axis(*args, **kwargs)[0]
     keepdims = kwargs.get("keepdims", False)
     ax_map = {w: None if w in axis else w for w in range(args[0].ndim)}
-    if not keepdims and fname != get_name(jnp.repeat):
+    if not keepdims and get_hash(f) != get_hash(jnp.repeat):
       ax_map = reduce_axis(ax_map)
 
-  elif fname == get_name(jax.nn.softmax):
+  elif get_hash(f) == get_hash(jax.nn.softmax):
     assert "axis" in kwargs.keys()
     axis = mod_axis(kwargs["axis"], args[0].ndim)
     if type(axis) not in [list, tuple]:
       axis = (axis,)
     ax_map = {w: None if w in axis else w for w in range(args[0].ndim)}
 
-  elif fname == get_name(jnp.transpose):
+  elif get_hash(f) == get_hash(jnp.transpose):
     ax_map = _transpose_map(*args, **kwargs)
     
-  elif fname == get_name(jnp.swapaxes):
+  elif get_hash(f) == get_hash(jnp.swapaxes):
     ax_map = _swapaxes_map(*args, **kwargs)
   
-  elif fname == get_name(jnp.squeeze):
+  elif get_hash(f) == get_hash(jnp.squeeze):
     ax_map = _squeeze_map(*args, **kwargs)
   
-  elif fname == get_name(jnp.expand_dims):
+  elif get_hash(f) == get_hash(jnp.expand_dims):
     ax_map = _expand_dims_map(*args, **kwargs)
   
-  elif fname in get_name([jnp.triu, jnp.tril]):
+  elif get_hash(f) in get_hash([jnp.triu, jnp.tril]):
     ax_map = {w:w for w in range(args[0].ndim)} # remains
   
-  elif fname == get_name(jnp.tile):
+  elif get_hash(f) == get_hash(jnp.tile):
     ax_map = _tile_map(*args, **kwargs)
 
-  elif fname == get_name(jnp.linalg.slogdet):
+  elif get_hash(f) == get_hash(jnp.linalg.slogdet):
     ndim = args[0].ndim
     ax_map = {w:w for w in range(ndim - 2)}
     ax_map.update({ndim-2:None, ndim-1:None})
 
-  elif fname == get_name(jnp.reshape):
+  elif get_hash(f) == get_hash(jnp.reshape):
     ax_map = _reshape_map(*args, **kwargs)
     
-  elif fname in get_name([jnp.split, jnp.array_split]):
+  elif get_hash(f) in get_hash([jnp.split, jnp.array_split]):
     ax_map = _split_map(*args, **kwargs)
   
-  lap_print(f"  axes map: {ax_map}")
+  elif fname in flinear.namelist:
+    ax_map = {}
+
+  else:
+    raise NotImplementedError(f"Function {fname} is not supported by Lapjax.")
+
+  lapconfig.log(f"  axes map: {ax_map}")
   return ax_map
 
 class _shapeQ(object):
@@ -383,7 +392,7 @@ def matrix_spars (lap_idx: int, spars:SparsInfo, f: Callable,
   Args:
       lap_idx (int): which input is LapTuple, left (0) or right (1).
       spars (SparsInfo): The SparsInfo of the LapTuple.
-      f (Callable): The partial function to be called, with correct `f.__name__`.
+      f (Callable): The partial function to be called, with correct hash.
       g1 (jnp.ndarray): The LHS input of f (can be grad).
       g2 (jnp.ndarray): The RHG input of f (can be grad).
 
@@ -392,9 +401,9 @@ def matrix_spars (lap_idx: int, spars:SparsInfo, f: Callable,
   """
 
   spars = deepcopy(spars)
-  ax_map = _get_matrixdot_axis_map(f.__name__, 
-                                  n1=g1.ndim - (1-lap_idx),
-                                  n2=g2.ndim - lap_idx)[lap_idx]
+  ax_map = _get_matrixdot_axis_map(f, 
+                                   n1=g1.ndim - (1-lap_idx),
+                                   n2=g2.ndim - lap_idx)[lap_idx]
   # discard merging axis
   if lap_idx == 0:  # The left one is LapTuple
     g1 = spars.discard({g1.ndim - 2}, g1)
@@ -522,7 +531,7 @@ def sum_matrix_grad(f: Callable,
   # Till here, all conditions are satisfied, and we move the sparse axis
   # to the gradient to speed up the computation of f.
   
-  ax_maps = _get_matrixdot_axis_map(f.__name__, n1, n2)
+  ax_maps = _get_matrixdot_axis_map(f, n1, n2)
   # swap_map is {grad axis: (out axes)}. Used to switch grad axis back.
   swap_map = {i: [] for i in range(gdim)}  
   for i, (splits, ax_map) in enumerate(zip(l_splits, ax_maps)):

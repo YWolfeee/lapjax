@@ -3,11 +3,30 @@
 LapJAX is a package built upon Google JAX. The purpose of this package is to compute the laplacian automatically using a technique budded "Forward Laplacian". The mathematical introduction can be founded [here](#forward-laplacian-introduction).
 
 
+### Installation
+To install LapJAX together with all the dependencies (excluding JAX), go to the downloaded directory and run
+
+```shell
+pip install .
+```
+
+Currently we do not support -e option (editable installation). If you have a GPU available, then you can
+install JAX with CUDA support, using e.g.:
+
+```shell
+pip3 install --upgrade jax[cuda]==0.3.24 -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+```
+
+Note that the jaxlib version must correspond to the existing CUDA installation
+you wish to use. Please see the
+[JAX documentation](https://github.com/google/jax#installation) for more
+details.
+
 ### Usage
 Assume you have written a function `f(x)` using jax, and you want to compute
   the laplacian of `f(x)` w.r.t. `x`.
 To use lapjax, take the following steps:
-1. Replace `jax` with `lapjax`, e.g.
+1. Replace `jax` with `lapjax`, e.g.,
 ```python
 # import jax.numpy as jnp
 # from jax import vmap
@@ -17,6 +36,12 @@ from lapjax import vmap
 def f(x):
   # Your code here.
   pass
+```
+or use a sys.modules replacement trick (not recommended):
+```python
+import lapjax
+import sys
+sys.modules['jax'] = lapjax
 ```
 2. Creat a LapTuple from the input, pass it to the function directly, and obtain the laplacian, e.g.
 ```python
@@ -72,3 +97,22 @@ These are JAX relevant auxiliary functions. We support `jax.vmap` with LapTuple 
 To add new functions, please follow the steps below:
 1. Check whether the function can be classified as an existing function type listed above. For example, for construction function, linear function and element-wise function, you can simply wrap them in the package (e.g. `lapjax/numpy.py`), add them to the `function_list` in corresponding function class (see `function_class.py`).
 2. If the function is special (you need to customize personal derivative computation and laplacian computation), please add them in the customized function class, and write your personal operations inside.
+
+
+To automatically check the correctness of your custumized functions, you can use `lapjax.create_check_function`. For example
+```
+import time
+import lapjax
+
+test_input = lapjax.numpy.ones([3,5])
+
+sin_check = lapjax.create_check_function(lapjax.numpy.sin, derivative_args=(0,), seed=int(time.time()))
+grad_diff, lap_diff = sin_check(test_input)
+print(f'gradient difference: {grad_diff}, laplacian difference: {lap_diff}')
+```
+
+`sin_check` takes the same input as `lapjax.numpy.sin` in the standard mode. We use `derivative_args` to denote which arguments we should transfer into `LapTuple` in the LapTuple mode. Remark that this transformation is finished in `sin_check`, so one should specify those arguments as standard `jnp.array`. `sin_check` will then output the gradient and Laplacian difference between lapjax and built-in method of JAX.
+
+The returned function of `lapjax.create_check_function` can also take keyword arguments as input. However, for argument positions in `derivative_args`, one should specify the corresponding arguments through positional arguments.
+
+As for the functions have multiple outputs, one can use `derivative_outputs` to denote which outputs we care about their derivatives. For example, the default value of `derivative_outputs` is `0`, which means we only care about the first output in a mutiple outputs function. If there are more than one outputs we care about, we can specifiy the `derivative_outputs` through a tuple of ints, e.g., `derivative_outputs=(0,1)` means we care about the first and the second output in this function.

@@ -2,7 +2,7 @@ from typing import Callable
 
 from jax import numpy as jnp
 
-from lapjax.laptuple import TupType, LapTuple
+from lapjax.lapsrc.laptuple import TupType, LapTuple
 
 #### Argument checking utilities.
 
@@ -13,8 +13,8 @@ def check_lapcount_args (fname, args):
 
 def check_single_args (fname, args):
   assert len(args) == 1, \
-    (f"When calling `{fname}`, there should only "
-    "be a single position argument. "
+    ("For the sake of LapJAX acceleration, we accept and only accept a single "
+    f"position argument when calling `{fname}`. "
     "Please pass the rest as keyword arguments.")
 
 def check_pure_kwargs (fname, kwargs):
