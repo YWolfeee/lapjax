@@ -4,17 +4,15 @@ from copy import deepcopy
 
 import jax
 import jax.numpy as jnp
-from lapjax.lapsrc.func_utils import lap_print
+from lapjax.lapsrc.lapconfig import lapconfig
 from lapjax.lapsrc.axis_utils import AX_MAP, SHAPE, merge_neg, parse_splits
-
-from lapjax.lapsrc.func_utils import lap_print
 
 class InputInfo (object):
   def __init__(self, size: int, id: int = None) -> None:
     if id is None:
       self.id = int(time.perf_counter_ns())
-      lap_print("Specifying new inputs for forward laplacian computation ...\n",
-            f"  Input ID: {self.id}, Length: {size}")
+      lapconfig.log("Creating LapTuple for inputs...") 
+      lapconfig.log(f"  Input ID: {self.id}, Length: {size}")
     else:
       self.id = id
     self.size = size

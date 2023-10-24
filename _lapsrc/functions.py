@@ -4,8 +4,8 @@ from typing import Any, Mapping, Sequence, Tuple, Union
 import jax
 import jax.numpy as jnp
 
+from lapjax.lapsrc.lapconfig import lapconfig
 from lapjax.lapsrc.laptuple import LapTuple, TupType
-from lapjax.lapsrc.func_utils import lap_print
 from lapjax.lapsrc.laputils import (
   laptupler, lap_counter,
   iter_func, lap_checker, tupler, lap_setter,
@@ -120,12 +120,26 @@ def custom_wrap(f: F, custom_type: FType, cst_f: F = None, overwrite: bool = Fal
   
   print(f"Successfully bind function '{f.__name__}' to {custom_type}.")
   from lapjax.lapsrc.lapconfig import lapconfig
-  if not lapconfig.custom_wrap_warned:
-    print("Notice that if custom_type is `FLinear`, " + \
-          "you might loss the sparsity.\n" + \
-          "Please consider customize the function and bind to `CUSTOMIZED`."
-          )
-    lapconfig.custom_wrap_warned = True
+  if not lapconfig.linear_wrap_warned and custom_type == FType.LINEAR:
+    lapconfig.logger.warning(
+      "Notice that if custom_type is `FLinear`, " + \
+      "the LapTuple might loss the sparsity and cause inefficiency.\n" + \
+      "You can customize the function yourself and bind to `CUSTOMIZED`."
+    )
+    lapconfig.linear_wrap_warned = True
+  if not lapconfig.merging_wrap_warned and custom_type == FType.MERGING:
+    lapconfig.logger.warning(
+      "Notice that if custom_type is `FMerging`, " + \
+      "LapJAX uses the traditional hessian-based method " + \
+      "to compute the laplacian across the merging axes.\n" + \
+      "When there is no sparsity and the merging axes are large, " + \
+      "it could cause OOM error.\n" + \
+      "You can use the looping mode `lapconfig.set_autolap_fori_loop()`, " + \
+      "which might be less efficient, " + \
+      "or to customize the function yourself and bind to `CUSTOMIZED`."
+    )
+    lapconfig.merging_wrap_warned = True
+  
   return wrap_class
 
 def lap_dispatcher (wrapped_f: F,
@@ -160,7 +174,7 @@ def lap_dispatcher (wrapped_f: F,
       args, kwargs = laptupler(p_args, i_args), laptupler(p_kwargs, i_kwargs)
 
       wrap_class = get_wrap_by_f(wrapped_f)
-      lap_print(f"==== Dispatch '{fname}' to {wrap_class.classname} class ====")
+      lapconfig.log(f"==== Dispatch '{fname}' to {wrap_class.classname} class ====")
       wrap_class.examine(wrapped_f, *args, **kwargs)
       return wrap_class.execute(wrapped_f, *args, **kwargs)
 
@@ -194,7 +208,7 @@ def vmap(fun: F,
     if lap_counter((args, kwargs)) == 0:
       return jax.vmap(fun, in_axes, out_axes)(*args, **kwargs)
 
-    lap_print("==== Dispatch 'vmap' to customized vmap function ====")
+    lapconfig.log("==== Dispatch 'vmap' to customized vmap function ====")
     # process in_axes, and expand them for LapTuple.
     _, in_tree  = tree_flatten((args, kwargs), is_leaf=batching.is_vmappable)
     in_flat = flatten_axes("vmap in_axes", in_tree, (in_axes, 0), kws=True)
@@ -222,8 +236,8 @@ def vmap(fun: F,
                             if y else x
     tuplized_in = (laptupler(_in[0], i_args, triple_f),
                    laptupler(_in[1], i_kwargs, triple_f))
-    lap_print(f"--> Final in_axes: args={tuplized_in[0]},"
-                          f" kwargs={tuplized_in[1]}")
+    lapconfig.log(f"--> Final in_axes: args={tuplized_in[0]}, " +
+              f" kwargs={tuplized_in[1]}")
 
     # The true function to be called.
     def _fun (p_args, p_kwargs):
@@ -251,9 +265,8 @@ def vmap(fun: F,
     # Indicator of whether each element is LapTuple.
     lap_axes = laptupler(_out, outs["i_out"],
                          lambda x, y: x[0] if y else None)
-    lap_print("<-- Final out_axes:", laptupler(_out,
-                                           outs["i_out"],
-                         lambda x, y: x[0] if y else x))
+    lapconfig.log("<-- Final out_axes: " + 
+              laptupler(_out, outs["i_out"], lambda x, y: x[0] if y else x))
 
     p_out = laptupler(outs["p_out"], lap_axes, _converter)
     return laptupler(p_out, s_out)

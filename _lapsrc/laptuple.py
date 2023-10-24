@@ -5,8 +5,9 @@ import enum
 import jax
 import jax.numpy as jnp
 
+from lapjax.lapsrc.lapconfig import lapconfig
 from lapjax.lapsrc.axis_utils import AX_MAP
-from lapjax.lapsrc.func_utils import lap_print, rewriting_take
+from lapjax.lapsrc.func_utils import rewriting_take
 from lapjax.lapsrc.sparsinfo import SparsInfo, InputInfo
 
 class TupType(enum.Enum):
@@ -134,7 +135,7 @@ class LapTuple(object):
     grad = new_spars.discard(op_axis, self.grad)
     # Upon return, self.spars has already been changed.
     if os != grad.shape:
-      lap_print(f"  Discard grad shape from {os} to {grad.shape}")
+      lapconfig.log(f"  Discard grad shape from {os} to {grad.shape}")
     return LapTuple(self.value, grad, self.lap, new_spars)
 
   def set_dense(self, force = False) -> "LapTuple":
@@ -167,7 +168,7 @@ class LapTuple(object):
                              self.grad)
     new_spars.swap_axis({w: v for w, v in ax_map.items() if v is not None})
     if os != grad.shape:
-      lap_print(f"  Update grad shape from {os} to {grad.shape}")
+      lapconfig.log(f"  Update grad shape from {os} to {grad.shape}")
     return LapTuple(self.value, grad, self.lap, new_spars)
 
   def map_axis_tuple(self, ax_map: AX_MAP) -> "LapTuple":
@@ -177,7 +178,7 @@ class LapTuple(object):
     new_spars = deepcopy(self.spars)
     grad = new_spars.map_for_reshape(self.grad, ax_map)
     if os != grad.shape:
-      lap_print(f"  Update grad shape from {os} to {grad.shape}")
+      lapconfig.log(f"  Update grad shape from {os} to {grad.shape}")
     return LapTuple(self.value, grad, self.lap, new_spars)
 
   def get(self, key: TupType) -> jnp.ndarray:

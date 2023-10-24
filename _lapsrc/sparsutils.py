@@ -10,7 +10,8 @@ from lapjax.lapsrc.axis_utils import (
   AX_MAP, SHAPE, S_AXES, 
   map_axis_from_shape, reduce_axis,
 )  
-from lapjax.lapsrc.func_utils import lap_print, get_name, get_hash, F
+from lapjax.lapsrc.lapconfig import lapconfig
+from lapjax.lapsrc.func_utils import get_name, get_hash, F
 from lapjax.lapsrc.axis_utils import mod_axis, get_op_axis, merge_neg
 from lapjax.lapsrc.laptuple import LapTuple
 from lapjax.lapsrc.laputils import check_single_args
@@ -219,7 +220,7 @@ def get_axis_map (f: F, *args, **kwargs) -> AX_MAP:
   else:
     raise NotImplementedError(f"Function {fname} is not supported by Lapjax.")
 
-  lap_print(f"  axes map: {ax_map}")
+  lapconfig.log(f"  axes map: {ax_map}")
   return ax_map
 
 class _shapeQ(object):

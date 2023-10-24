@@ -5,6 +5,7 @@ import jax
 
 import lapjax
 import lapjax.numpy as jnp
+from lapjax.lapsrc.functions import F
 
 from lapjax import LapTuple
 logging.basicConfig(level=logging.INFO)
@@ -53,7 +54,14 @@ def _convert_grad_vector_to_pytree(grad_vector, shape_list, tree_structure):
   return pytree
 
 
-def create_check_function(test_func, derivative_args=0, derivative_outputs=0, input_dim=3, seed=1234, return_all=False):
+def create_check_function(
+    test_func: F, 
+    derivative_args: int = 0, 
+    derivative_outputs: int = 0, 
+    input_dim: int = 3, 
+    seed: int = 42, 
+    return_all: bool = False
+  ):
   '''
   Create a function used for testing the Laplacian calculation.
   For example, if you want to check if a function, e.g., lapjax.numpy.sin, supports LapJAX calculation, you can do

@@ -27,9 +27,9 @@ for w in submodules:
     try:
       exec(f'from lapjax import {name} as {name}')
     except Exception as e:
-      print(f"Lapjax Warning: when wrapping '{w}',",
-            f"got ImportError:\n    {e}\n" + \
-             "This won't affect functions of other modules.")
+      lapconfig.logger.warning(f"When wrapping `jax` modules `{w}`, " +
+                               f"got ImportError:\n    {e}")
+      lapconfig.logger.warning("This won't affect functions of other modules.")
 del submodules
 del _os
 

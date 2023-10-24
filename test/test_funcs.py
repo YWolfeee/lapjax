@@ -4,15 +4,15 @@ import time
 import jax
 from jax.config import config as jax_config
 
-import lapjax
+from lapjax import FType, create_check_function
 import lapjax.numpy as jnp
-
 from lapjax.lapsrc.wrap_list import wrap_func_dict
 from lapjax.lapsrc.wrapper import _lapwrapper
-from lapjax.lapsrc.function_class import FType
+jax_config.update("jax_enable_x64", True)
 
-from lapjax import create_check_function
-
+logger = logging.getLogger("LapJAX-Checker")
+logger.setLevel(logging.DEBUG)
+logger.debug("Start checking wrapped functions...")
 
 def check_diff(func, *x, derivative_inputs=0, derivative_outputs=0, **kw):
   lapfunc = _lapwrapper(func)
@@ -24,20 +24,23 @@ def check_diff(func, *x, derivative_inputs=0, derivative_outputs=0, **kw):
     *x,
     **kw,
   )
-  logging.debug(
-    f"{func} gradient difference: {grad_diff}, Laplacian difference: {lap_diff}"
+  logger.debug(
+    f"Function[{func.__name__}] difference of gradient: {grad_diff:.2e}, difference of Laplacian: {lap_diff:.2e}"
   )
-  assert (
-    grad_diff < 1e-8 and lap_diff < 1e-8
-  ), f"Abnormal difference in :{func}. Gradient difference: \{grad_diff}, Laplacian difference: {lap_diff}"
+  try:
+    assert (
+      grad_diff < 1e-8 and lap_diff < 1e-8
+    ), f"Abnormal difference in :{func}. Gradient difference and Laplacian difference should be smaller than 1e-8."
+  except AssertionError as e:
+    logger.error(e)
+    raise e
 
+def test_all_CONSTRUCTION():
+  logger.debug("Skip CONSTRUCTION functions")
 
-def test_all_wrapped_functions():
-  jax_config.update("jax_enable_x64", True)
-  logging.basicConfig(level=logging.INFO)
-  logging.info("Start checking wrapped functions")
-  logging.info("Skip EMPTY and CONSTRUCTION function")
-  logging.info("LINEAR starts:")
+def test_all_LINEAR():
+  logger.debug("Test LINEAR functions...")
+
   check_diff(jax.numpy.reshape, jnp.ones([12, ]), (3, 4))
   check_diff(jax.numpy.transpose, jnp.ones([6, 8]))
   check_diff(jax.numpy.swapaxes, jnp.ones([6, 8, 10]), 1, 2)
@@ -61,26 +64,39 @@ def test_all_wrapped_functions():
   check_diff(jax.numpy.mean, jnp.ones([3, 4]))
   check_diff(jax.numpy.broadcast_to, jnp.ones([3, 4]), (5, 3, 4))
 
-  logging.info("LINEAR checked. ELEMENT starts:")
+  logger.debug("LINEAR functions checked")
+
+def test_all_ELEMENT():
+  logger.debug("Test ELEMENT functions...")
 
   for func in wrap_func_dict[FType.ELEMENT]:
-    if (
-      func == jax.numpy.power
-      or func == jax.lax.pow
-      or func == jax.lax.integer_pow
-    ):
+    if func in [jax.numpy.power, jax.lax.pow]:
+      check_diff(func, jnp.ones([3, 4]) * 0.1, 2.0)
+    elif func == jax.lax.integer_pow:
       check_diff(func, jnp.ones([3, 4]) * 0.1, 2)
     elif func == jax.lax.acosh or func == jax.numpy.arccosh:
       check_diff(func, jnp.ones([3, 4]) * 10)
     else:
       check_diff(func, jnp.ones([3, 4]) * 0.1)
 
-  logging.info("ELEMENT checked. MERGING starts:")
+  logger.debug("ELEMENT functions checked")
+
+def test_all_OVERLOAD():
+  logger.debug("Skip OVERLOAD functions")
+
+def test_all_MERGING():
+  logger.debug("Test MERGING functions...")
   check_diff(jax.numpy.linalg.norm, jnp.ones([3, 4]))
   check_diff(jax.numpy.prod, jnp.ones([3, 4]))
 
-  logging.info("MERGING checked. OVERLOAD skipped. CUSTOMIZED starts:")
+  logger.debug("MERGING functions checked")
 
+def test_all_CUSTOMIZED():
+  logger.debug("Test CUSTOMIZED functions...")
+
+  logger.debug("CUSTOMIZED functions checked")
+
+def test_all_wrapped_functions():
   check_diff(
     jax.numpy.matmul, jnp.ones([3, 4]), jnp.ones([4, 5]), derivative_inputs=(0, 1)
   )
@@ -97,8 +113,10 @@ def test_all_wrapped_functions():
   check_diff(jax.nn.logsumexp, jnp.array([[1, 2], [3, 4.0]]), axis=-1)
   check_diff(jax.nn.softmax, jnp.array([[1, 2], [3, 4.0]]), axis=-1)
 
-  logging.info("All functions are checked")
-
-
-if __name__ == "__main__":
-    test_all_wrapped_functions()
+test_all_CONSTRUCTION()
+test_all_LINEAR()
+test_all_ELEMENT()
+test_all_OVERLOAD()
+test_all_MERGING()
+test_all_CUSTOMIZED()
+logger.debug("All functions are checked. Test passed.")

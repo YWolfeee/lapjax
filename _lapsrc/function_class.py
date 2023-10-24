@@ -8,7 +8,8 @@ from jax import vmap
 from jax import numpy as jnp
 from jax import lax as jlax
 
-from lapjax.lapsrc.func_utils import lap_print, get_name, get_hash, vgd_f, F
+from lapjax.lapsrc.lapconfig import lapconfig
+from lapjax.lapsrc.func_utils import get_name, get_hash, vgd_f, F
 from lapjax.lapsrc.axis_utils import get_op_axis
 from lapjax.lapsrc.laptuple import LapTuple, TupType
 from lapjax.lapsrc.laputils import (
@@ -94,13 +95,13 @@ class FLinear(FBase):
 
     # shortcut for mean and sum
     if get_hash(f) in get_hash([jnp.sum, jnp.mean]):
-      lap_print(f"|-->`{fname}` tries to operate on dense axes first.")
+      lapconfig.log(f"|-->`{fname}` tries to operate on dense axes first.")
   
       out =  shortcut_for_discard(f, *args, **kwargs)
       if out is not None: # otherwise, continue the execution
-        lap_print(f"|--<`{fname}` shortcut succeeds.")
+        lapconfig.log(f"|--<`{fname}` shortcut succeeds.")
         return out
-      lap_print(f"|--<`{fname}` shortcut fails, will behave normally.")
+      lapconfig.log(f"|--<`{fname}` shortcut fails, will behave normally.")
 
     # Ensure that the call is normal.
     # Standard bug will be raised here.
@@ -123,7 +124,7 @@ class FLinear(FBase):
         # grads are properly discarded upon return.
         arrays, spars = concat_sparsity(args[0], op_axis)
         l_args = (arrays, )
-      lap_print(f"    Discard sparsity to {spars.tups}.")
+      lapconfig.log(f"    Discard sparsity to {spars.tups}.")
 
     elif get_hash(f) == get_hash(jnp.where):
       out_sh = val_out.shape
@@ -294,7 +295,7 @@ class FMerging(FBase):
       from lapjax import numpy as my_jnp
       if p_kwargs.get("ord") in [None, 'fro'] or \
         (p_kwargs.get("ord") == 2 and len(op_axis) == 1):
-        lap_print("----Calling sqrt-sum-square sequence as shortcut of 'norm'.")
+        lapconfig.log("----Calling sqrt-sum-square sequence as shortcut of 'norm'.")
         new_args = (my_jnp.square(args[0]), ) + args[1:]
         kwargs.pop('ord', None)
         return my_jnp.sqrt(my_jnp.sum(*new_args, **kwargs))
@@ -343,12 +344,12 @@ class FCustomized(FBase):
     fname = get_name(f)
     if get_hash(f) in get_hash([jnp.max, jnp.min, jnp.amax, jnp.amin,]):
       # Consider shortcut first:
-      lap_print(f"|-->`{fname}` tries to operate on dense axes first.")
+      lapconfig.log(f"|-->`{fname}` tries to operate on dense axes first.")
       out =  shortcut_for_discard(f, *args, **kwargs)
       if out is not None: # otherwise, continue the execution
-        lap_print(f"|--<`{fname}` shortcut succeeds.")
+        lapconfig.log(f"|--<`{fname}` shortcut succeeds.")
         return out
-      lap_print(f"|--<`{fname}` shortcut fails, will behave normally.")
+      lapconfig.log(f"|--<`{fname}` shortcut fails, will behave normally.")
 
     # Behave according to the function.
     if get_hash(f) in get_hash([jnp.matmul, jnp.dot]):

@@ -11,10 +11,6 @@ from lapjax.lapsrc.lapconfig import lapconfig
 
 F = TypeVar("F", bound=Callable)
 
-def lap_print(*args, **kwargs):
-  if lapconfig.debug_print:
-    print(*args, **kwargs)
-
 
 def rewriting_take(arr, idx):
   """
@@ -123,13 +119,13 @@ def vgd_f (f):
 
     # then, calculate lap
     if lapconfig.autolap.type == lapconfig.autolap.Type.hessian:
-      lap_print("    Entering hessian mode.")
+      lapconfig.log("    Entering hessian mode.")
       # hessian mode
       final_lap = jnp.sum(gf_y * l) + jnp.sum(
                     jnp.matmul(g, jax.hessian(_f)(v)) * g)
     else:
       # lap_over_f mode.
-      lap_print("    Entering fori_loop mode.")
+      lapconfig.log("    Entering fori_loop mode.")
       times = ((n-1) // lapconfig.autolap.block + 1)
       nupper = times * lapconfig.autolap.block
       if n == nupper:
@@ -144,9 +140,9 @@ def vgd_f (f):
 
       def _loop_he(i, val):
         right = v_dgrad_f(eye[i])
-        lap_print(f"    partial hessian shape = {right.shape}")
+        lapconfig.log(f"    partial hessian shape = {right.shape}")
         right = jnp.matmul(g, right.T)  # (len(x), block)
-        lap_print(f"    partial matmul shape = {right.shape}")
+        lapconfig.log(f"    partial matmul shape = {right.shape}")
         return jnp.sum(_g[:,i] * right) + val
       final_lap = jax.lax.fori_loop(0, times, _loop_he, jnp.sum(gf_y * l))
 
