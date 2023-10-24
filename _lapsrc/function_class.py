@@ -43,9 +43,11 @@ class FBase(object):
   def __init__(self) -> None:
     from lapjax.lapsrc.wrap_list import wrap_func_dict
     self.funclist = wrap_func_dict[self.ftype]
+    from inspect import isclass
     for w in self.funclist:  # Can only add function type inside
-      assert type(w) in self.support_type, \
-      f"{w.__name__} has type {type(w)}, but only support {self.support_type}!"
+      assert callable(w) and not isclass(w), \
+      f"Function[{w.__name__}] has is either not callable or is a class, " + \
+      f"which should not be wrapped by Lapjax."
     self.updated()
 
   def updated(self) -> None:
