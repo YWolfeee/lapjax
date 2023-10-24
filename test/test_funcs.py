@@ -86,6 +86,7 @@ def test_all_OVERLOAD():
 
 def test_all_MERGING():
   logger.debug("Test MERGING functions...")
+
   check_diff(jax.numpy.linalg.norm, jnp.ones([3, 4]))
   check_diff(jax.numpy.prod, jnp.ones([3, 4]))
 
@@ -94,9 +95,6 @@ def test_all_MERGING():
 def test_all_CUSTOMIZED():
   logger.debug("Test CUSTOMIZED functions...")
 
-  logger.debug("CUSTOMIZED functions checked")
-
-def test_all_wrapped_functions():
   check_diff(
     jax.numpy.matmul, jnp.ones([3, 4]), jnp.ones([4, 5]), derivative_inputs=(0, 1)
   )
@@ -112,6 +110,8 @@ def test_all_wrapped_functions():
   )
   check_diff(jax.nn.logsumexp, jnp.array([[1, 2], [3, 4.0]]), axis=-1)
   check_diff(jax.nn.softmax, jnp.array([[1, 2], [3, 4.0]]), axis=-1)
+
+  logger.debug("CUSTOMIZED functions checked")
 
 test_all_CONSTRUCTION()
 test_all_LINEAR()
