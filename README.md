@@ -3,6 +3,8 @@ LapJAX is a JAX-based python package that accelerates laplacian computation auto
 
 **WIP Repo**: This repo is still under development. We sincerely thank you in advance for your understanding, and appreciate any feedback, suggestions, and contributions. See [contributing guidelines](#contributions) for more.
 
+![](img/acceleration.png)
+
 ### Installation
 To install LapJAX together with all the dependencies (excluding JAX), go to the root directory and run
 
