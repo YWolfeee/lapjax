@@ -24,13 +24,9 @@ def check_diff(func, *x, derivative_inputs=0, derivative_outputs=0, **kw):
   print(
     f"Function[{func.__name__}] difference of gradient: {grad_diff:.2e}, difference of Laplacian: {lap_diff:.2e}"
   )
-  try:
-    assert (
+  assert (
       grad_diff < 1e-8 and lap_diff < 1e-8
     ), f"Abnormal difference in :{func}. Gradient difference and Laplacian difference should be smaller than 1e-8."
-  except AssertionError as e:
-    logger.error(e)
-    raise e
 
 def test_all_CONSTRUCTION():
   print("Skip CONSTRUCTION functions")
