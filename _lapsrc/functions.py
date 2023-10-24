@@ -16,13 +16,19 @@ from lapjax.lapsrc.function_class import *
 def is_wrapped(wrapped_f: F) -> bool:
     return max([wrapped_f.__hash__() in w.hashlist for w in func_type]) == 1
 
+def get_all_wrapped_names() -> Mapping[FType, Sequence[str]]:
+  from lapjax.lapsrc.wrap_list import wrap_func_dict
+  return {
+    k: [w.__name__ for w in v] for k, v in wrap_func_dict.items()
+  }
+
 def get_wrap_by_f(wrapped_f: F) -> FBase:
   for wrap_class in func_type:
     if wrapped_f.__hash__() in wrap_class.hashlist:
       return wrap_class
   raise ValueError(f"Function '{wrapped_f.__name__}' is not wrapped.")
 
-def get_wrap_by_type(wrap_type: FType) -> FBase:
+def get_by_wrap_type(wrap_type: FType) -> FBase:
   return [w for w in func_type if w.ftype == wrap_type][0]
 
 def custom_wrap(f: F, custom_type: FType, cst_f: F = None, overwrite: bool = False) -> FBase:
@@ -109,7 +115,7 @@ def custom_wrap(f: F, custom_type: FType, cst_f: F = None, overwrite: bool = Fal
   elif is_wrapped(f):
     ori_cls = get_wrap_by_f(f)
     ori_cls.remove_wrap(f)
-  wrap_class = get_wrap_by_type(custom_type)
+  wrap_class = get_by_wrap_type(custom_type)
   if custom_type != FType.CUSTOMIZED:
     wrap_class.add_wrap(f)
 
