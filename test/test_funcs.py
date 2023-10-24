@@ -1,4 +1,3 @@
-import logging
 import time
 
 import jax
@@ -10,9 +9,7 @@ from lapjax.lapsrc.wrap_list import wrap_func_dict
 from lapjax.lapsrc.wrapper import _lapwrapper
 jax_config.update("jax_enable_x64", True)
 
-logger = logging.getLogger("LapJAX-Checker")
-logger.setLevel(logging.DEBUG)
-logger.debug("Start checking wrapped functions...")
+print("Start checking wrapped functions...")
 
 def check_diff(func, *x, derivative_inputs=0, derivative_outputs=0, **kw):
   lapfunc = _lapwrapper(func)
@@ -24,7 +21,7 @@ def check_diff(func, *x, derivative_inputs=0, derivative_outputs=0, **kw):
     *x,
     **kw,
   )
-  logger.debug(
+  print(
     f"Function[{func.__name__}] difference of gradient: {grad_diff:.2e}, difference of Laplacian: {lap_diff:.2e}"
   )
   try:
@@ -36,10 +33,10 @@ def check_diff(func, *x, derivative_inputs=0, derivative_outputs=0, **kw):
     raise e
 
 def test_all_CONSTRUCTION():
-  logger.debug("Skip CONSTRUCTION functions")
+  print("Skip CONSTRUCTION functions")
 
 def test_all_LINEAR():
-  logger.debug("Test LINEAR functions...")
+  print("Test LINEAR functions...")
 
   check_diff(jax.numpy.reshape, jnp.ones([12, ]), (3, 4))
   check_diff(jax.numpy.transpose, jnp.ones([6, 8]))
@@ -64,10 +61,10 @@ def test_all_LINEAR():
   check_diff(jax.numpy.mean, jnp.ones([3, 4]))
   check_diff(jax.numpy.broadcast_to, jnp.ones([3, 4]), (5, 3, 4))
 
-  logger.debug("LINEAR functions checked")
+  print("LINEAR functions checked")
 
 def test_all_ELEMENT():
-  logger.debug("Test ELEMENT functions...")
+  print("Test ELEMENT functions...")
 
   for func in wrap_func_dict[FType.ELEMENT]:
     if func in [jax.numpy.power, jax.lax.pow]:
@@ -79,21 +76,21 @@ def test_all_ELEMENT():
     else:
       check_diff(func, jnp.ones([3, 4]) * 0.1)
 
-  logger.debug("ELEMENT functions checked")
+  print("ELEMENT functions checked")
 
 def test_all_OVERLOAD():
-  logger.debug("Skip OVERLOAD functions")
+  print("Skip OVERLOAD functions")
 
 def test_all_MERGING():
-  logger.debug("Test MERGING functions...")
+  print("Test MERGING functions...")
 
   check_diff(jax.numpy.linalg.norm, jnp.ones([3, 4]))
   check_diff(jax.numpy.prod, jnp.ones([3, 4]))
 
-  logger.debug("MERGING functions checked")
+  print("MERGING functions checked")
 
 def test_all_CUSTOMIZED():
-  logger.debug("Test CUSTOMIZED functions...")
+  print("Test CUSTOMIZED functions...")
 
   check_diff(
     jax.numpy.matmul, jnp.ones([3, 4]), jnp.ones([4, 5]), derivative_inputs=(0, 1)
@@ -111,7 +108,7 @@ def test_all_CUSTOMIZED():
   check_diff(jax.nn.logsumexp, jnp.array([[1, 2], [3, 4.0]]), axis=-1)
   check_diff(jax.nn.softmax, jnp.array([[1, 2], [3, 4.0]]), axis=-1)
 
-  logger.debug("CUSTOMIZED functions checked")
+  print("CUSTOMIZED functions checked")
 
 test_all_CONSTRUCTION()
 test_all_LINEAR()
@@ -119,4 +116,4 @@ test_all_ELEMENT()
 test_all_OVERLOAD()
 test_all_MERGING()
 test_all_CUSTOMIZED()
-logger.debug("All functions are checked. Test passed.")
+print("All functions are checked. Test passed.")
