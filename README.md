@@ -1,4 +1,4 @@
-# LapJAX: Efficient Forward-Mode Laplacian Computation JAX
+# LapJAX: Efficient Forward-mode Laplacian Computation in JAX
 LapJAX is a JAX-based python package that accelerates laplacian computation automatically using a technique called "Forward Laplacian". It leverages the properties of forward computation mode and the sparsity of various operators, and significantly accelerates computation in proportion to system sizes. Notably, LapJAX acceleration is in loss of no precision. For more details including mathematical derivitations, please refer to the [forward laplacian paper](https://arxiv.org/abs/2307.08214).
 
 **WIP Repo**: This repo is still under development. We sincerely thank you in advance for your understanding, and appreciate any feedback, suggestions, and contributions. See [contributing guidelines](#contributions) for more.
