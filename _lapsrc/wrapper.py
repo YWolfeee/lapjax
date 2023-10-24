@@ -41,7 +41,8 @@ def _wrap_module(module, new_module):
   import jax.numpy as jnp
   from lapjax.lapsrc.laptuple import LapTuple
   mem_funcs = [jnp.mean, jnp.sum, jnp.min, jnp.max]
-  alls = [w for w in dir(module) if not w.startswith('_')]
+  underscored_filter = ['__version__']
+  alls = [w for w in dir(module) if not w.startswith('_') or w in underscored_filter]
   for name in alls:
     if hasattr(new_module, name):
       continue
