@@ -1,7 +1,9 @@
-# LapJAX: Efficient Forward-Mode Laplacian Computation JAX
+# LapJAX: Efficient Forward-mode Laplacian Computation in JAX
 LapJAX is a JAX-based python package that accelerates laplacian computation automatically using a technique called "Forward Laplacian". It leverages the properties of forward computation mode and the sparsity of various operators, and significantly accelerates computation in proportion to system sizes. Notably, LapJAX acceleration is in loss of no precision. For more details including mathematical derivitations, please refer to the [forward laplacian paper](https://arxiv.org/abs/2307.08214).
 
 **WIP Repo**: This repo is still under development. We sincerely thank you in advance for your understanding, and appreciate any feedback, suggestions, and contributions. See [contributing guidelines](#contributions) for more.
+
+![](img/acceleration.png)
 
 ### Installation
 To install LapJAX together with all the dependencies (excluding JAX), go to the root directory and run
@@ -51,19 +53,25 @@ def lap_of_f(x):
 ```
 **A Quick Look**: LapJAX explicitly wraps various JAX functions such that they can take a data structure called LapTuple as input. Here, LapTuple is a tuple-like structure containing $(x, \nabla x, \nabla^2 x)$. When receiving LapTuple inputs, LapJAX wrapped operators automatically compute the gradient and laplacian of the output w.r.t. the input, and output the LapTuple $(f(x), \nabla f(x), \nabla^2 f(x))$. 
 
-**Attention**: When the input is a standard JAX Array, LapJAX operators behave the same as JAX operators.
+**Attention**: When the input is a standard JAX Array, LapJAX operators behave the same as JAX operators. In addition, JAX and LapJAX are compatible. That said, to avoid unexpected problems, you are still recommended to replace import commands only in Python files that contain laplacian computation functions.
 
 **JAX-based Packages**: 
-Many popular packages rely on JAX. For now, we cannot wrap the functions in these packages directly. However, we provide a replacement trick to make LapJAX compatible with these packages. Before importing any JAX-based packages, you can run
+Many popular packages rely on JAX, and we understand that they are widely used. Currently, we cannot wrap the functions in these packages directly, but there is a replacement trick to make LapJAX compatible with these packages. Before importing any JAX-based packages, you can run
 ```python
 import lapjax
 import sys
 sys.modules['jax'] = lapjax
 ```
-This replaces the system module `jax` with `lapjax`. Other packages importing `jax` ends up relying on `lapjax`, which handles LapTuple inputs. Notice that it is possible that this method would cause additional unexpected issues. Please raise issues if you have any problems.
+This replaces the system module `jax` with `lapjax`. Other packages importing `jax` ends up relying on `lapjax`, which handles LapTuple inputs. Notice that it is possible this method could cause additional unexpected issues, for example, if they apply some non-JAX functions on JAX arrays. Please raise issues if you have any problems.
 
 ### Supported Functions
-LapJax wraps many commonly used JAX operators that support LapTuple inputs (most of which are in `jax.numpy`). However, we acknowledge that the supported functions are a still small subset. You can use `lapjax.is_wrapped(f)` to check whether JAX function `f` is supported, or you can get all supported functions via `lapjax.get_all_wrapped_names()`. Below is the list of supported functions (`jnp` stands for `jax.numpy`, and `jlax` stands for `jax.lax`). To understand the classification of these functions, please refer to the tutorial.
+LapJax wraps many commonly used JAX operators that support LapTuple inputs (most of which are in `jax.numpy`). However, we acknowledge that the supported functions are a still small subset. If you use an unwrapped function with LapTuple inputs (say `isnan`), you will get a NotImplementedError:
+```python
+NotImplementedError: Lapjax encounters unwrapped function 'isnan'.
+Please consider using other functions or wrap it yourself.
+You can refer to README for more information about customized wrap.
+```
+You can always use `lapjax.is_wrapped(f)` to check whether JAX function `f` is supported, or you can get all supported functions via `lapjax.get_all_wrapped_names()`. Below is the list of supported functions (`jnp` stands for `jax.numpy`, and `jlax` stands for `jax.lax`). To understand the classification of these functions, please refer to the tutorial.
 
 ```python
 FType.CONSTRUCTION: [
@@ -96,7 +104,7 @@ FType.EMPTY: [
 ```
 
 ### Add Your Functions
-We give a few examples of how to easily support other JAX functions with LapTuple inputs in `lapjax-tutorial.ipynb`. Here we provide a quick introduction:
+When you want to use an unwrapped function, a good starting point is to consider replacing it with wrapped functions. That said, wrapping new functions yourself is still necessary in many cases. We give a few examples of how to easily support other JAX functions with LapTuple inputs in `lapjax-tutorial.ipynb`. Here we provide a quick introduction:
 1. Check whether the function can be classified as an existing function FType. For example, for construction functions, linear functions, element-wise functions and merging functions, LapJAX provides a general handler, and you can directly run
 ```python
 from lapjax import numpy, custom_wrap, FType
