@@ -326,12 +326,12 @@ class LapTuple(object):
   def __ge__(self, x):
     r_val = x.value if isinstance(x, LapTuple) else x
     return self.value >= r_val
-
-  def argmax(self):
-    return self.value.argmax()
-
-  def argmin(self):
-    return self.value.argmin()
+  
+  def __len__(self):
+    # TODO: This len function behavior need to be discussed in the future
+    # Now, to be compatible with existing packages, we have to define the
+    # len as the value array
+    return len(self.value)
 
   @classmethod
   def identical(cls, x, y) -> bool:

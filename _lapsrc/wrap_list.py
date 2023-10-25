@@ -11,6 +11,7 @@ wrap_func_dict = {
     jnp.ones, jnp.ones_like,
     jnp.zeros, jnp.zeros_like,
     jnp.asarray, jnp.sign,
+    jnp.argmax, jnp.argmin, jnp.argsort, jnp.argwhere,
     jlax.stop_gradient,
   ],
 
