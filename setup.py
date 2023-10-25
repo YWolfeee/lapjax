@@ -104,7 +104,9 @@ def pre_setup():
   shutil.copytree('_lapsrc', 'lapjax/lapsrc')
   shutil.move('lapjax/lapsrc/__init__.py', 'lapjax/__init__.py')
   shutil.move('lapjax/lapsrc/__init__.pyi', 'lapjax/__init__.pyi')
-  os.mknod("lapjax/lapsrc/__init__.py")
+  f = open('lapjax/lapsrc/__init__.py', 'x')
+  f.close()
+  # os.mknod("lapjax/lapsrc/__init__.py")
   # Copy the `jax` package structure to `lapjax`.
   create_py('lapjax', jax.__path__[0], 'jax')
 pre_setup()
