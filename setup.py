@@ -32,16 +32,8 @@ except:
   raise ImportError('`jax` package is required for setup.')
 
 REQUIRED_PACKAGES = [
-  'absl-py>=1.4.0',
-  'attrs>=21.2.0',
-  'h5py>=3.8.0',
-  'chex>=0.1.5',
-  'optax>=0.1.4',
-  'numpy>=1.21.5',
-  'scipy>=1.7.3',
-  'typing_extensions>=4.5.0',
-  'dm-haiku>=0.0.9',
   'jax>=0.3.7',
+  'jaxlib>=0.1.69',
 ]
 
 with open("README.md", "r") as fh:
