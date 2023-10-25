@@ -128,6 +128,14 @@ class FLinear(FBase):
         l_args = (arrays, )
       lapconfig.log(f"    Discard sparsity to {spars.tups}.")
 
+    elif get_hash(f) == get_hash(jnp.stack):
+      check_single_args(fname, args)
+      op_axis = kwargs.get("axis", 0)
+      from lapjax import numpy as my_jnp
+      arrays = [my_jnp.expand_dims(w, axis=op_axis) for w in args[0]]
+      l_args = (arrays, ) + args[1:]
+      return my_jnp.concatenate(*l_args, **kwargs)
+
     elif get_hash(f) == get_hash(jnp.where):
       out_sh = val_out.shape
       cnd, x, y = args

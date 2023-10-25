@@ -16,7 +16,7 @@ wrap_func_dict = {
 
   FType.LINEAR: [
   jnp.reshape, jnp.transpose, jnp.swapaxes,
-  jnp.split, jnp.array_split, jnp.concatenate,
+  jnp.split, jnp.array_split, jnp.concatenate, jnp.stack,
   jnp.squeeze, jnp.expand_dims,
   jnp.repeat, jnp.tile,
   jnp.where, jnp.triu, jnp.tril,
