@@ -140,7 +140,7 @@ If you find this repo useful, please cite our paper:
 ```
 @article{li2023forward,
   title={Forward Laplacian: A New Computational Framework for Neural Network-based Variational Monte Carlo},
-  author={Li, Ruichen and Ye, Haotian and Jiang, Du and Wen, Xuelan and Wang, Chuwei and Li, Zhe and Li, Xiang and He, Di and Chen, Ji and Ren, Weiluo and others},
+  author={Li, Ruichen and Ye, Haotian and Jiang, Du and Wen, Xuelan and Wang, Chuwei and Li, Zhe and Li, Xiang and He, Di and Chen, Ji and Ren, Weiluo and Wang, Liwei},
   journal={arXiv preprint arXiv:2307.08214},
   year={2023}
 }

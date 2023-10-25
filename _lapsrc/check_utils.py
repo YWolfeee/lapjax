@@ -77,27 +77,27 @@ def create_check_function(
   matmul_check = create_check_function(lapjax.numpy.matmul, derivative_args=(0,1))
   grad_diff, lap_diff = matmul_check(lapjax.numpy.array([[1,2],[3,4]]),lapjax.numpy.array([[1,2],[3,4]]))
   ```
-  If there are more than one outputs, one should use derivative_outputs to denote which output is LapTuple in Lapjax.
+  If there are more than one outputs, one should use derivative_outputs to denote which output is LapTuple in LapJAX.
   ```
   logdet_check = create_check_function(lapjax.numpy.linalg.slogdet, derivative_output=1)
   grad_diff, lap_diff = logdet_check(lapjax.numpy.array([[1,2],[3,4]]))
   ```
   One can also pass other keyword or positional arguments to the function produced by create_check_function. However, 
-  all the arguments correspond to Autodiff variable, i.e., can be replaced by LapTuple, should be specified 
+  all the arguments corresponding to Autodiff variable, i.e., which can be replaced by LapTuple, should be specified 
   through POSITIONAL arguments.
   Inputs:
-    derivative_args: An unsigned int or a tuple of unsigned ints, denotes the argnum used in the derivative 
+    derivative_args: An int or a tuple of ints, denotes the argnum used in the derivative 
       calcalution, i.e., should be replaced by LapTuple in LapJAX.
-    derivative_output: An unsigned int or a tuple of unsigned ints denotes which arguments should be considered 
+    derivative_output: An int or a tuple of ints denotes which arguments should be considered 
       as a LapTuple in the output. 
-    input_dim: Unsigned int. The testing input dimension in this function.
-    seed: Unsigned int. Random seed
+    input_dim: Int. The testing input dimension in this function.
+    seed: Int. Random seed
     return_all: If this term is setted as True, the checking function will return grad_in_hessian, 
       grad_in_lapjax, lap_in_hessian, lap_in_lapjax; As for the False, it will return the difference
       between hessian and lapjax methods.
   Outputs:
     checking_function. The input of this function should be same as the original function. It outputs 
-      the difference between LAPJAX and Hessian method in calculating the Laplacian and Gradient.
+      the difference between LapJAX and Hessian method in calculating the Laplacian and Gradient.
   '''
   if isinstance(derivative_args, int):
     derivative_args = (derivative_args, )
@@ -105,7 +105,7 @@ def create_check_function(
     derivative_outputs = (derivative_outputs, )
   def checking_function(*args, **kwargs):
     # This function uses a MLP to generate the input for test_func
-    # It thus contains a non-zero gradient and laplacian term.
+    # It thus contains a non-zero gradient and laplacian term for the input LapTuple.
     assert len(args) >= max(derivative_args), 'All the arguments corresponding to Autodiff variable, i.e., can \
       be replaced by LapTuple, should be specified through positional arguments'
     # create a test_function only takes the autodiff variables as input and output
