@@ -42,6 +42,7 @@ REQUIRED_PACKAGES = [
   # 'typing_extensions>=4.5.0',
   # 'dm-haiku>=0.0.9',
   # 'jax>=0.3.7',
+  'jaxlib>=0.1.69',
 ]
 
 with open("README.md", "r") as fh:
