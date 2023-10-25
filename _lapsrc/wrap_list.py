@@ -30,14 +30,13 @@ wrap_func_dict = {
   jnp.arcsinh, jnp.arccosh, jnp.arctanh,
   jnp.sinh, jnp.cosh, jnp.tanh,
   jnp.exp, jnp.log, jnp.exp2, jnp.log2,
-  jnp.square, jnp.sqrt, jnp.power,
+  jnp.square, jnp.sqrt,
   jnp.abs, jnp.absolute,
   jlax.sin, jlax.cos, jlax.tan,
   jlax.asin, jlax.acos, jlax.atan,
   jlax.asinh, jlax.acosh, jlax.atanh, 
   jlax.exp, jlax.log,
   jlax.square, jlax.sqrt, jlax.rsqrt, 
-  jlax.pow, jlax.integer_pow,
   jlax.abs, 
   ],
 
@@ -56,6 +55,9 @@ wrap_func_dict = {
     jnp.linalg.slogdet,
     jax.nn.logsumexp,
     jax.nn.softmax,
+    jax.numpy.power,
+    jlax.pow,
+    jlax.integer_pow,
   ],
 
   FType.EMPTY: [

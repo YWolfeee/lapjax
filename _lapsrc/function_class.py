@@ -506,6 +506,15 @@ class FCustomized(FBase):
       unnormalized = my_jnp.exp(array - lax.stop_gradient(x_max))
       r_args = (unnormalized,) + args[1:]
       return unnormalized / my_jnp.sum(*r_args, **kwargs)
+
+    elif get_hash(f) in [get_hash(t) for t in [jnp.power, jlax.pow, jlax.integer_pow]]:
+      def power(x1:LapTuple, x2):
+        x,g,l = input.to_tuple()
+        xn = x**pow
+        gn = pow * (x**(pow-1)) * g
+        ln = pow * (x**(pow-1)) * l + pow * (pow - 1) * (x ** (pow - 2)) * jax.numpy.sum(g * g,axis=0)
+        return LapTuple(xn,gn,ln,input.spars)
+      return power(*args, **kwargs)
     
     elif get_hash(f) in self.custom_dict.keys():  # user defined function
       return self.custom_dict[get_hash(f)](*args, **kwargs)
