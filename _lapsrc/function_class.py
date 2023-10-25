@@ -231,13 +231,29 @@ class FElement(FBase):
     check_lapcount_args(fname, args)
 
   def execute(self, _f, *args, **kwargs):
-    def p_f (x):
-      cargs = (x,)+args[1:]
-      return _f(*cargs, **kwargs)
-    flist = [p_f, jax.grad(p_f), jax.grad(jax.grad(p_f))]
+    l_args = (args[0].value,) + args[1:]
+    valout = _f(*l_args, **kwargs)  # standard jax bugs will be raised here.
 
-    x, g, l = args[0].to_tuple()
-    out = [vmap(f)(x.reshape(-1)).reshape(x.shape) for f in flist]
+    if get_hash(_f) in get_hash([jnp.power, jlax.pow]):
+      p_f = lambda x, y: _f(x, y, **kwargs)
+      pow_v = args[1]
+      from lapjax import numpy as my_jnp
+      pow_v = my_jnp.broadcast_to(pow_v, valout.shape)
+      array = my_jnp.broadcast_to(args[0], valout.shape)
+      
+      x, g, l = array.to_tuple()
+      flist = [jax.grad(p_f), jax.grad(jax.grad(p_f))]
+      out = [valout] + [vmap(f, in_axes=(0,0))(
+        x.reshape(-1), pow_v.reshape(-1)).reshape(valout.shape) for f in flist]
+
+    else:
+      def p_f (x):
+        cargs = (x,)+args[1:]
+        return _f(*cargs, **kwargs)
+      
+      x, g, l = args[0].to_tuple()
+      flist = [jax.grad(p_f), jax.grad(jax.grad(p_f))]
+      out = [valout] + [vmap(f)(x.reshape(-1)).reshape(x.shape) for f in flist]
 
     return LapTuple(out[0], out[1][None] * g,
             out[1] * l + out[2] * jax.numpy.sum(g ** 2, axis=0),
