@@ -114,6 +114,7 @@ setup(
   long_description_content_type='text/markdown',
   url='https://github.com/YWolfeee/lapjax',
   packages=find_packages(exclude=['_lapsrc']),
+  package_data={'lapjax': ['*.pyi']},
   include_package_data=True,
   install_requires=REQUIRED_PACKAGES,
   extras_require={'testing': ['flake8', 'pylint', 'pytest', 'pytype']},
