@@ -190,9 +190,12 @@ class LapTuple(object):
       args = (args,)
     return my_jnp.reshape(self, *args, order=order)
 
-  def transpose(self, axes = None) -> 'LapTuple':
+  def transpose(self, *args, **kwargs) -> 'LapTuple':
     from lapjax import numpy as my_jnp
-    return my_jnp.transpose(self, axes)
+    if len(args) > 0 and type(args[0]) != tuple:
+      args = (args,)
+    axes = (kwargs['axes'],) if 'axes' in kwargs else args
+    return my_jnp.transpose(self, *axes)
 
   @property
   def T(self) -> 'LapTuple':
