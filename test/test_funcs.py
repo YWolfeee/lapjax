@@ -2,13 +2,12 @@ import logging
 import time
 
 import jax
-from jax.config import config as jax_config
 
 from lapjax import FType, create_check_function
 import lapjax.numpy as jnp
 from lapjax.lapsrc.wrap_list import wrap_func_dict
 from lapjax.lapsrc.wrapper import _lapwrapper
-jax_config.update("jax_enable_x64", True)
+jax.config.update("jax_enable_x64", True)
 
 logger = logging.getLogger("LapJAX-Checker")
 logger.setLevel(logging.DEBUG)
