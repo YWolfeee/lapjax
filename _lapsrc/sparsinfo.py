@@ -10,7 +10,7 @@ from lapjax.lapsrc.axis_utils import AX_MAP, SHAPE, merge_neg, parse_splits
 class InputInfo (object):
   def __init__(self, size: int, id: int = None) -> None:
     if id is None:
-      self.id = int(time.perf_counter_ns())
+      self.id = int(time.perf_counter_ns()%2147483648)
       lapconfig.log("Creating LapTuple for inputs...") 
       lapconfig.log(f"  Input ID: {self.id}, Length: {size}")
     else:
