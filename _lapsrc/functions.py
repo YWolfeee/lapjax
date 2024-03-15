@@ -271,8 +271,8 @@ def vmap(fun: F,
     # Indicator of whether each element is LapTuple.
     lap_axes = laptupler(_out, outs["i_out"],
                          lambda x, y: x[0] if y else None)
-    lapconfig.log("<-- Final out_axes: " + 
-              laptupler(_out, outs["i_out"], lambda x, y: x[0] if y else x))
+    lapconfig.log("<-- Final out_axes: ")
+    lapconfig.log(laptupler(_out, outs["i_out"], lambda x, y: x[0] if y else x))
 
     p_out = laptupler(outs["p_out"], lap_axes, _converter)
     return laptupler(p_out, s_out)
